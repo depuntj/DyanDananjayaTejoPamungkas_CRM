@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 
-const props = defineProps<{
+defineProps<{
     salesUsers: Array<{
         id: number;
         name: string;

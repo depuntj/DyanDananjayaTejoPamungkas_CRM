@@ -8,7 +8,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { MoreHorizontal, Plus, Search } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 
-const props = defineProps<{
+const { products } = defineProps<{
     products: {
         data: Array<{
             id: number;

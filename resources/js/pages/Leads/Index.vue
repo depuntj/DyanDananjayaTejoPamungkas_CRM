@@ -9,7 +9,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import { MoreHorizontal, Plus, Search } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 
-const props = defineProps<{
+const { leads } = defineProps<{
     leads: {
         data: Array<{
             id: number;

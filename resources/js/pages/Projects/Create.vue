@@ -19,16 +19,16 @@ const props = defineProps<{
     salesUsers: Array<{
         id: number;
         name: string;
-    }>;
+    }>
     products: Array<{
         id: number;
         name: string;
         price: number;
         speed: string;
-        type: string;
-    }>;
+        productType: string;
+    }>
     lead_id?: number;
-}>();
+}>();A
 
 const form = useForm({
     name: '',

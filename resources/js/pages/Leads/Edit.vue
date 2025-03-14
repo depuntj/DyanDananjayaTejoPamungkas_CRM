@@ -39,8 +39,6 @@ const props = defineProps<{
     }>;
 }>();
 
-const assignedToStringValue = ref(props.lead.assigned_to !== null ? props.lead.assigned_to.toString() : '');
-
 // Initialize form with lead data
 const form = ref<LeadForm>({
     name: props.lead.name,
@@ -67,27 +65,18 @@ const statusOptions = [
 // Computed property to get selected status label
 const selectedStatusLabel = computed(() => statusOptions.find((option) => option.value === form.value.status)?.label || 'Select Status');
 
-// Watch for changes in assignedToStringValue and update the form
-const handleAssignedToChange = (value) => {
-    // Convert empty string to null
-    if (value === '') {
-        form.value.assigned_to = null;
-    } else {
-        // Convert string to number
-        form.value.assigned_to = parseInt(value, 10);
-    }
-    console.log('Assigned to changed:', value, 'Form value:', form.value.assigned_to);
-};
+// Computed property to get selected user name
+const selectedUserLabel = computed(() => {
+    if (form.value.assigned_to === null) return 'Unassigned';
+    const user = props.salesUsers.find((u) => u.id === form.value.assigned_to);
+    return user ? user.name : 'Unassigned';
+});
 
 const submit = () => {
-    // Log the form values before submission
-    console.log('Submitting form with:', JSON.stringify(form.value, null, 2));
-
     router.put(route('leads.update', props.lead.id), form.value, {
         preserveScroll: true,
         onSuccess: () => {
             // Optional: Add success handling
-            console.log('Lead updated successfully');
         },
         onError: (errors) => {
             console.error('Form submission errors:', errors);
@@ -157,16 +146,19 @@ const submit = () => {
                             <!-- Assign To -->
                             <div class="space-y-2">
                                 <Label for="assigned_to">Assign To</Label>
-                                <select
-                                    class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                    :value="form.assigned_to === null ? '' : form.assigned_to.toString()"
-                                    @change="(e) => handleAssignedToChange(e.target.value)"
-                                >
-                                    <option value="">Unassigned</option>
-                                    <option v-for="user in salesUsers" :key="user.id" :value="user.id.toString()">
-                                        {{ user.name }}
-                                    </option>
-                                </select>
+                                <Select v-model="form.assigned_to" :model-value="form.assigned_to?.toString()">
+                                    <SelectTrigger>
+                                        <SelectValue>
+                                            {{ selectedUserLabel }}
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">Unassigned</SelectItem>
+                                        <SelectItem v-for="user in salesUsers" :key="user.id" :value="user.id.toString()">
+                                            {{ user.name }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
 

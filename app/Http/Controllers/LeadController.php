@@ -81,14 +81,6 @@ class LeadController extends Controller
             'assigned_to' => 'nullable|exists:users,id',
         ]);
 
-        // Handle assigned_to field to ensure null is stored properly
-        if (isset($validated['assigned_to']) && $validated['assigned_to'] === '') {
-            $validated['assigned_to'] = null;
-        }
-
-        // Log the assigned_to value for debugging
-        Log::info('Creating lead with assigned_to:', ['value' => $validated['assigned_to'] ?? 'null']);
-
         $lead = Lead::create($validated);
 
         return redirect()->route('leads.index')
@@ -104,19 +96,16 @@ class LeadController extends Controller
     }
 
     public function edit(Lead $lead)
-    {
-        $salesUsers = User::where('role', 'sales')->get();
-        return Inertia::render('Leads/Edit', [
-            'lead' => $lead,
-            'salesUsers' => $salesUsers
-        ]);
-    }
+{
+    $salesUsers = User::where('role', 'sales')->get();
+    return Inertia::render('Leads/Edit', [
+        'lead' => $lead,
+        'salesUsers' => $salesUsers
+    ]);
+}
 
     public function update(Request $request, Lead $lead)
     {
-        // Log the raw request data for debugging
-        Log::info('Lead update request data:', ['raw_assigned_to' => $request->input('assigned_to')]);
-
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'company_name' => 'nullable|string|max:255',
@@ -128,22 +117,7 @@ class LeadController extends Controller
             'assigned_to' => 'nullable|exists:users,id',
         ]);
 
-        if ($request->has('assigned_to')) {
-            $assignedTo = $request->input('assigned_to');
-
-            Log::info('Processing assigned_to:', ['value' => $assignedTo, 'type' => gettype($assignedTo)]);
-
-            if ($assignedTo === null || $assignedTo === 'null' || $assignedTo === '') {
-                $validated['assigned_to'] = null;
-            } else {
-                $validated['assigned_to'] = (int)$assignedTo;
-            }
-        }
-
-        Log::info('Final validated data:', ['assigned_to' => $validated['assigned_to'] ?? null]);
         $lead->update($validated);
-        $lead->refresh();
-        Log::info('Lead after update:', ['assigned_to' => $lead->assigned_to]);
 
         return redirect()->route('leads.index')
             ->with('success', 'Lead updated successfully');

@@ -4,9 +4,12 @@ import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-vue-next';
+import { Link, usePage } from '@inertiajs/vue3';
+import { BookOpen, Building2, FileSpreadsheet, Folder, LayoutGrid, ShoppingBag, Users } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
+
+const { auth } = usePage().props;
+const userRole = auth.user?.role || 'user';
 
 const mainNavItems: NavItem[] = [
     {
@@ -14,7 +17,39 @@ const mainNavItems: NavItem[] = [
         href: '/dashboard',
         icon: LayoutGrid,
     },
+    {
+        title: 'Leads',
+        href: '/leads',
+        icon: Users,
+    },
+    {
+        title: 'Projects',
+        href: '/projects',
+        icon: FileSpreadsheet,
+    },
+    {
+        title: 'Products',
+        href: '/products',
+        icon: ShoppingBag,
+    },
+    {
+        title: 'Customers',
+        href: '/customers',
+        icon: Building2,
+    },
 ];
+
+// Only show admin and manager items to those roles
+const adminNavItems: NavItem[] =
+    userRole === 'admin' || userRole === 'manager'
+        ? [
+              {
+                  title: 'Users',
+                  href: '/users',
+                  icon: Users,
+              },
+          ]
+        : [];
 
 const footerNavItems: NavItem[] = [
     {
@@ -46,6 +81,9 @@ const footerNavItems: NavItem[] = [
 
         <SidebarContent>
             <NavMain :items="mainNavItems" />
+
+            <!-- Admin Navigation Section -->
+            <NavMain v-if="adminNavItems.length > 0" :items="adminNavItems" />
         </SidebarContent>
 
         <SidebarFooter>

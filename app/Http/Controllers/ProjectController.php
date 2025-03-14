@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Product;
 use App\Models\Project;
@@ -16,7 +17,7 @@ class ProjectController extends Controller
     public function index(Request $request)
     {
         $query = Project::query()
-            ->with(['lead', 'assignedUser', 'approvedBy', 'products'])
+            ->with(['lead', 'assignedUser', 'approvedBy'])
             ->when($request->search, function($query, $search) {
                 $query->where('name', 'like', "%{$search}%");
             })
@@ -34,13 +35,6 @@ class ProjectController extends Controller
             ->paginate($request->per_page ?? 10)
             ->withQueryString();
 
-        $filters = [
-            'search' => $request->search,
-            'status' => $request->status,
-            'sort_field' => $sortField,
-            'sort_direction' => $sortDirection,
-        ];
-
         return Inertia::render('Projects/Index', [
             'projects' => [
                 'data' => $projects->items(),
@@ -53,14 +47,17 @@ class ProjectController extends Controller
                     'per_page' => $projects->perPage(),
                 ],
                 'links' => $projects->linkCollection(),
-
             ],
-            'filters' => $filters,
-            'statuses' => ['pending', 'approved', 'rejected', 'completed'],
+            'filters' => [
+                'search' => $request->search,
+                'status' => $request->status,
+                'sort_field' => $sortField,
+                'sort_direction' => $sortDirection,
+            ],
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $leads = Lead::where('status', '!=', 'converted')
             ->when(Auth::user()->role === 'sales', function ($query) {
@@ -76,6 +73,7 @@ class ProjectController extends Controller
             'leads' => $leads,
             'salesUsers' => $salesUsers,
             'products' => $products,
+            'lead_id' => $request->input('lead_id'),
         ]);
     }
 
@@ -91,6 +89,11 @@ class ProjectController extends Controller
             'products.*.quantity' => 'required|integer|min:1',
             'products.*.price' => 'required|numeric|min:0',
         ]);
+
+        // Handle empty assigned_to
+        if ($validated['assigned_to'] === '') {
+            $validated['assigned_to'] = null;
+        }
 
         DB::beginTransaction();
 
@@ -136,8 +139,11 @@ class ProjectController extends Controller
     public function edit(Project $project)
     {
         $project->load('products');
-        $leads = Lead::where('status', '!=', 'converted')
-            ->orWhere('id', $project->lead_id)
+
+        $leads = Lead::where(function($query) use ($project) {
+                $query->where('status', '!=', 'converted')
+                      ->orWhere('id', $project->lead_id);
+            })
             ->get();
 
         $salesUsers = User::where('role', 'sales')->get();
@@ -163,6 +169,11 @@ class ProjectController extends Controller
             'products.*.quantity' => 'required|integer|min:1',
             'products.*.price' => 'required|numeric|min:0',
         ]);
+
+        // Handle empty assigned_to
+        if ($validated['assigned_to'] === '') {
+            $validated['assigned_to'] = null;
+        }
 
         // Only managers can update projects that are already approved
         if ($project->status === 'approved' && Auth::user()->role !== 'manager') {
@@ -239,7 +250,7 @@ class ProjectController extends Controller
         return back()->with('success', 'Project rejected successfully');
     }
 
-    public function convert(Request $request, Project $project)
+    public function convert(Project $project)
     {
         if ($project->status !== 'approved') {
             return back()->with('error', 'Only approved projects can be converted to customers.');
@@ -251,7 +262,7 @@ class ProjectController extends Controller
             $lead = $project->lead;
 
             // Create customer
-            $customer = $lead->customer()->create([
+            $customer = Customer::create([
                 'name' => $lead->name,
                 'company_name' => $lead->company_name,
                 'email' => $lead->email,

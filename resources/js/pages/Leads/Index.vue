@@ -2,12 +2,11 @@
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import { MoreHorizontal, Plus, Search } from 'lucide-vue-next';
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 
 const props = defineProps<{
     leads: {
@@ -44,42 +43,38 @@ const props = defineProps<{
     };
 }>();
 
+// Initialize search with props value
 const search = ref(props.filters.search || '');
-const status = ref(props.filters.status || '');
 
-// Debounce search to reduce unnecessary API calls
-const debouncedSearch = (() => {
-    let timeoutId: number;
-    return (fn: () => void) => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(fn, 500) as unknown as number;
-    };
-})();
-
-// Apply filters
-const applyFilters = () => {
-    const params: Record<string, string> = {};
+// Function to handle search submission
+function handleSearch() {
+    const params = new URLSearchParams();
 
     if (search.value) {
-        params.search = search.value;
+        params.append('search', search.value);
     }
 
-    if (status.value) {
-        params.status = status.value;
+    if (props.filters.status) {
+        params.append('status', props.filters.status);
     }
 
-    router.get(route('leads.index'), params, {
-        preserveState: true,
-        preserveScroll: true,
-    });
-};
+    window.location.href = `${route('leads.index')}?${params.toString()}`;
+}
 
-// Watch for changes in search and status
-watch(search, () => {
-    debouncedSearch(applyFilters);
-});
+// Function to change status filter
+function changeStatus(newStatus) {
+    const params = new URLSearchParams();
 
-watch(status, applyFilters);
+    if (search.value) {
+        params.append('search', search.value);
+    }
+
+    if (newStatus) {
+        params.append('status', newStatus);
+    }
+
+    window.location.href = `${route('leads.index')}?${params.toString()}`;
+}
 
 const statusOptions = [
     { value: '', label: 'All Statuses' },
@@ -137,22 +132,23 @@ const formatDate = (dateString: string) => {
             <!-- Filters -->
             <div class="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                 <div class="w-full sm:max-w-xs">
-                    <div class="relative">
-                        <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input type="search" placeholder="Search leads..." class="pl-8" v-model="search" />
-                    </div>
+                    <form @submit.prevent="handleSearch">
+                        <div class="relative">
+                            <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input type="search" placeholder="Search leads..." class="pl-8" v-model="search" />
+                        </div>
+                    </form>
                 </div>
                 <div class="flex w-full items-center gap-3 sm:w-auto">
-                    <Select v-model="status">
-                        <SelectTrigger class="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Select Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem v-for="option in statusOptions" :key="option.value" :value="option.value">
-                                {{ option.label }}
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <select
+                        :value="props.filters.status"
+                        @change="e => changeStatus(e.target.value)"
+                        class="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                        <option v-for="option in statusOptions" :key="option.value" :value="option.value">
+                            {{ option.label }}
+                        </option>
+                    </select>
                 </div>
             </div>
 
@@ -231,30 +227,30 @@ const formatDate = (dateString: string) => {
             <div v-if="leads.meta.last_page > 1" class="mt-4 flex items-center justify-between">
                 <div class="text-sm text-muted-foreground">Showing {{ leads.meta.from }} to {{ leads.meta.to }} of {{ leads.meta.total }} leads</div>
                 <div class="flex items-center space-x-2">
-                    <Link
+
                         v-if="leads.meta.current_page > 1"
-                        :href="route('leads.index', { page: leads.meta.current_page - 1, ...filters })"
+                        :href="`${route('leads.index')}?page=${leads.meta.current_page - 1}${props.filters.search ? '&search=' + props.filters.search : ''}${props.filters.status ? '&status=' + props.filters.status : ''}`"
                         class="rounded-md bg-muted px-3 py-1 hover:bg-muted-foreground/10"
                     >
                         Previous
-                    </Link>
+                    </a>
                     <div v-for="(link, i) in leads.links.slice(1, -1)" :key="i">
-                        <Link
+
                             v-if="link.url"
-                            :href="link.url"
+                            :href="`${link.url}${props.filters.status ? '&status=' + props.filters.status : ''}${props.filters.search ? '&search=' + props.filters.search : ''}`"
                             class="rounded-md px-3 py-1"
                             :class="link.active ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted-foreground/10'"
                         >
                             {{ link.label }}
-                        </Link>
+                        </a>
                     </div>
-                    <Link
+
                         v-if="leads.meta.current_page < leads.meta.last_page"
-                        :href="route('leads.index', { page: leads.meta.current_page + 1, ...filters })"
+                        :href="`${route('leads.index')}?page=${leads.meta.current_page + 1}${props.filters.search ? '&search=' + props.filters.search : ''}${props.filters.status ? '&status=' + props.filters.status : ''}`"
                         class="rounded-md bg-muted px-3 py-1 hover:bg-muted-foreground/10"
                     >
                         Next
-                    </Link>
+                    </a>
                 </div>
             </div>
         </div>

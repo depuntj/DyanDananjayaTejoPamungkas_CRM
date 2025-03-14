@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,20 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea/Index';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
-
-// Define type for form data
-interface LeadForm {
-    name: string;
-    company_name: string | null;
-    email: string;
-    phone: string;
-    address: string;
-    notes: string | null;
-    status: string;
-    assigned_to: number | null;
-}
+import { Head, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const props = defineProps<{
     lead: {
@@ -40,13 +29,13 @@ const props = defineProps<{
 }>();
 
 // Initialize form with lead data
-const form = ref({
+const form = useForm({
     name: props.lead.name,
-    company_name: props.lead.company_name,
+    company_name: props.lead.company_name || '',
     email: props.lead.email,
     phone: props.lead.phone,
     address: props.lead.address,
-    notes: props.lead.notes,
+    notes: props.lead.notes || '',
     status: props.lead.status,
     assigned_to: props.lead.assigned_to === null ? '' : props.lead.assigned_to,
 });
@@ -63,27 +52,9 @@ const statusOptions = [
 ];
 
 // Computed property to get selected status label
-const selectedStatusLabel = computed(() => statusOptions.find((option) => option.value === form.value.status)?.label || 'Select Status');
-
-// Computed property to get selected user name
-const selectedUserLabel = computed(() => {
-    if (form.value.assigned_to === null) return 'Unassigned';
-    const user = props.salesUsers.find((u) => u.id === form.value.assigned_to);
-    return user ? user.name : 'Unassigned';
-});
+const selectedStatusLabel = computed(() => statusOptions.find((option) => option.value === form.status)?.label || 'Select Status');
 
 const submit = () => {
-<<<<<<< HEAD
-    router.put(route('leads.update', props.lead.id), form.value, {
-        preserveScroll: true,
-        onSuccess: () => {
-            // Optional: Add success handling
-        },
-        onError: (errors) => {
-            console.error('Form submission errors:', errors);
-        },
-    });
-=======
     const formData = {
         name: form.value.name,
         company_name: form.value.company_name,
@@ -98,7 +69,6 @@ const submit = () => {
     console.log('Submitting with assigned_to:', formData.assigned_to);
 
     router.put(route('leads.update', props.lead.id), formData);
->>>>>>> 8bcbf0072bd733cd8971e734d61a0babcadb35fe
 };
 </script>
 
@@ -123,24 +93,28 @@ const submit = () => {
                             <div class="space-y-2">
                                 <Label for="name">Name</Label>
                                 <Input id="name" v-model="form.name" required placeholder="Enter lead name" />
+                                <InputError :message="form.errors.name" />
                             </div>
 
                             <!-- Company Name -->
                             <div class="space-y-2">
                                 <Label for="company_name">Company Name</Label>
                                 <Input id="company_name" v-model="form.company_name" placeholder="Enter company name" />
+                                <InputError :message="form.errors.company_name" />
                             </div>
 
                             <!-- Email -->
                             <div class="space-y-2">
                                 <Label for="email">Email</Label>
                                 <Input id="email" type="email" v-model="form.email" required placeholder="Enter email address" />
+                                <InputError :message="form.errors.email" />
                             </div>
 
                             <!-- Phone -->
                             <div class="space-y-2">
                                 <Label for="phone">Phone</Label>
                                 <Input id="phone" v-model="form.phone" required placeholder="Enter phone number" />
+                                <InputError :message="form.errors.phone" />
                             </div>
 
                             <!-- Status -->
@@ -158,26 +132,12 @@ const submit = () => {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <InputError :message="form.errors.status" />
                             </div>
 
                             <!-- Assign To -->
                             <div class="space-y-2">
                                 <Label for="assigned_to">Assign To</Label>
-<<<<<<< HEAD
-                                <Select v-model="form.assigned_to" :model-value="form.assigned_to?.toString()">
-                                    <SelectTrigger>
-                                        <SelectValue>
-                                            {{ selectedUserLabel }}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="">Unassigned</SelectItem>
-                                        <SelectItem v-for="user in salesUsers" :key="user.id" :value="user.id.toString()">
-                                            {{ user.name }}
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-=======
                                 <select
                                     id="assigned_to"
                                     v-model="form.assigned_to"
@@ -188,7 +148,6 @@ const submit = () => {
                                         {{ user.name }}
                                     </option>
                                 </select>
->>>>>>> 8bcbf0072bd733cd8971e734d61a0babcadb35fe
                             </div>
                         </div>
 
@@ -196,16 +155,19 @@ const submit = () => {
                         <div class="space-y-2">
                             <Label for="address">Address</Label>
                             <Textarea id="address" v-model="form.address" required placeholder="Enter address" rows="3" />
+                            <InputError :message="form.errors.address" />
                         </div>
 
                         <!-- Notes -->
                         <div class="space-y-2">
                             <Label for="notes">Notes</Label>
                             <Textarea id="notes" v-model="form.notes" placeholder="Additional notes" rows="4" />
+                            <InputError :message="form.errors.notes" />
                         </div>
                     </CardContent>
-                    <CardFooter>
-                        <Button type="submit">Update Lead</Button>
+                    <CardFooter class="flex justify-between">
+                        <Button type="button" variant="outline" :disabled="form.processing" @click="$router.back()">Cancel</Button>
+                        <Button type="submit" :disabled="form.processing">Update Lead</Button>
                     </CardFooter>
                 </Card>
             </form>

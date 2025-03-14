@@ -48,21 +48,6 @@ interface Project {
     products: ProjectProduct[];
 }
 
-interface FormProduct {
-    id: string;
-    quantity: number;
-    price: string;
-}
-
-interface ProjectForm {
-    name: string;
-    lead_id: string;
-    assigned_to: string;
-    notes: string;
-    products: FormProduct[];
-    [key: string]: any;
-}
-
 const props = defineProps<{
     project: Project;
     leads: Lead[];
@@ -77,10 +62,10 @@ const formattedProducts = props.project.products.map((product) => ({
     price: product.pivot.price.toString(),
 }));
 
-const form = useForm<ProjectForm>({
+const form = useForm({
     name: props.project.name,
     lead_id: props.project.lead_id.toString(),
-    assigned_to: props.project.assigned_to?.toString() || '',
+    assigned_to: props.project.assigned_to === null ? '' : props.project.assigned_to.toString(),
     notes: props.project.notes || '',
     products: formattedProducts,
 });
@@ -97,7 +82,9 @@ const addProduct = () => {
 
 // Handle removing a product
 const removeProduct = (index: number) => {
-    form.products.splice(index, 1);
+    if (form.products.length > 1) {
+        form.products.splice(index, 1);
+    }
 };
 
 // Set product price based on selected product
@@ -121,7 +108,7 @@ const submit = () => {
     form.put(route('projects.update', props.project.id));
 };
 
-// Navigation handler to replace $router.go(-1)
+// Navigation handler
 const goBack = () => {
     window.history.back();
 };
@@ -171,17 +158,16 @@ const goBack = () => {
                             <!-- Assigned To -->
                             <div class="space-y-2">
                                 <Label for="assigned_to">Assign To</Label>
-                                <Select v-model="form.assigned_to">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a sales representative" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="">Unassigned</SelectItem>
-                                        <SelectItem v-for="user in salesUsers" :key="user.id" :value="user.id.toString()">
-                                            {{ user.name }}
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <select
+                                    id="assigned_to"
+                                    v-model="form.assigned_to"
+                                    class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                >
+                                    <option value="">Unassigned</option>
+                                    <option v-for="user in salesUsers" :key="user.id" :value="user.id.toString()">
+                                        {{ user.name }}
+                                    </option>
+                                </select>
                                 <InputError :message="form.errors.assigned_to" />
                             </div>
 

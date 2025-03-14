@@ -9,10 +9,15 @@ use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+// Redirect root to login
 Route::get('/', function () {
     return redirect()->route('login');
 });
 
+// Add a proper home route that redirects to dashboard
+Route::get('/home', function () {
+    return redirect()->route('dashboard');
+})->name('home');
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

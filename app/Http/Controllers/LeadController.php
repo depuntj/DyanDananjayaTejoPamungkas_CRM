@@ -7,11 +7,17 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Log;
 
 class LeadController extends Controller
 {
     public function index()
     {
+        \Log::info('Fetching leads', [
+            'user_id' => Auth::id(),
+            'user_role' => Auth::user()->role
+        ]);
+
         $leads = Lead::with('assignedUser')
             ->when(Auth::user()->role === 'sales', function ($query) {
                 return $query->where('assigned_to', Auth::id())
@@ -19,6 +25,8 @@ class LeadController extends Controller
             })
             ->latest()
             ->paginate(10);
+
+        \Log::info('Leads count', ['count' => $leads->count()]);
 
         return Inertia::render('Leads/Index', [
             'leads' => $leads,

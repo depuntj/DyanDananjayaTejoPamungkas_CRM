@@ -107,6 +107,7 @@ const applyFilters = () => {
 
     window.location.href = route('leads.index', params);
 };
+console.log('Leads received:', leads);
 </script>
 
 <template>

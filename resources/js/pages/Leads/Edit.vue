@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { Textarea } from '@/components/ui/textarea/Index';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const props = defineProps<{
     lead: {
@@ -36,6 +37,19 @@ const form = useForm({
     notes: props.lead.notes,
     status: props.lead.status,
     assigned_to: props.lead.assigned_to,
+});
+const notesValue = computed({
+    get: () => form.notes ?? undefined,
+    set: (value: string | undefined) => {
+        form.notes = value ?? null;
+    },
+});
+
+const companyNameValue = computed({
+    get: () => form.company_name ?? undefined,
+    set: (value: string | undefined) => {
+        form.company_name = value ?? null;
+    },
 });
 
 const submit = () => {
@@ -70,11 +84,11 @@ const statusOptions = [
                     </CardHeader>
                     <CardContent class="space-y-6">
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                            <!-- Name -->
+                            <!-- Company Name -->
                             <div class="space-y-2">
-                                <Label for="name" required>Name</Label>
-                                <Input id="name" v-model="form.name" required />
-                                <InputError :message="form.errors.name" />
+                                <Label for="company_name">Company Name</Label>
+                                <Input id="company_name" v-model="companyNameValue" />
+                                <InputError :message="form.errors.company_name" />
                             </div>
 
                             <!-- Company Name -->
@@ -142,12 +156,14 @@ const statusOptions = [
                         <!-- Notes -->
                         <div class="space-y-2">
                             <Label for="notes">Notes</Label>
-                            <Textarea id="notes" v-model="form.notes" rows="4" />
+                            <Textarea id="notes" v-model="notesValue" rows="4" />
                             <InputError :message="form.errors.notes" />
                         </div>
                     </CardContent>
                     <CardFooter class="flex justify-between">
-                        <Button type="button" variant="outline" :disabled="form.processing" @click="$router.go(-1)"> Cancel </Button>
+                        <Button type="button" variant="outline" :disabled="form.processing" @click="router.visit(route('leads.index'))">
+                            Cancel
+                        </Button>
                         <Button type="submit" :disabled="form.processing"> Update Lead </Button>
                     </CardFooter>
                 </Card>

@@ -5,9 +5,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { Textarea } from '@/components/ui/textarea/Index';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 
 defineProps<{
     salesUsers: Array<{
@@ -23,7 +23,7 @@ const form = useForm({
     phone: '',
     address: '',
     notes: '',
-    assigned_to: null as number | null,
+    assigned_to: undefined as string | undefined,
 });
 
 const submit = () => {
@@ -84,8 +84,8 @@ const submit = () => {
                                         <SelectValue placeholder="Select a sales representative" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem :value="null">Unassigned</SelectItem>
-                                        <SelectItem v-for="user in salesUsers" :key="user.id" :value="user.id">
+                                        <SelectItem value="">Unassigned</SelectItem>
+                                        <SelectItem v-for="user in salesUsers" :key="user.id" :value="String(user.id)">
                                             {{ user.name }}
                                         </SelectItem>
                                     </SelectContent>
@@ -109,7 +109,9 @@ const submit = () => {
                         </div>
                     </CardContent>
                     <CardFooter class="flex justify-between">
-                        <Button type="button" variant="outline" :disabled="form.processing" @click="$router.go(-1)"> Cancel </Button>
+                        <Button type="button" variant="outline" :disabled="form.processing" @click="router.visit(route('leads.index'))">
+                            Cancel
+                        </Button>
                         <Button type="submit" :disabled="form.processing"> Create Lead </Button>
                     </CardFooter>
                 </Card>

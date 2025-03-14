@@ -7,48 +7,89 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-// Redirect root to login
+// Unauthenticated Routes
 Route::get('/', function () {
     return redirect()->route('login');
-});
+})->name('root');
 
-// Add a proper home route that redirects to dashboard
 Route::get('/home', function () {
     return redirect()->route('dashboard');
 })->name('home');
+
+// Authenticated Routes with Global Auth Middleware
 Route::middleware(['auth'])->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
 
-    // Lead routes
-    Route::resource('leads', LeadController::class);
+    // Leads Routes
+    Route::prefix('leads')->name('leads.')->group(function () {
+        Route::get('/', [LeadController::class, 'index'])->name('index');
+        Route::get('/create', [LeadController::class, 'create'])->name('create');
+        Route::post('/', [LeadController::class, 'store'])->name('store');
+        Route::get('/{lead}', [LeadController::class, 'show'])->name('show');
+        Route::get('/{lead}/edit', [LeadController::class, 'edit'])->name('edit');
+        Route::put('/{lead}', [LeadController::class, 'update'])->name('update');
+        Route::delete('/{lead}', [LeadController::class, 'destroy'])->name('destroy');
+    });
 
-    // Product routes - only accessible by admin and manager
-    Route::middleware(['auth', 'role:admin|manager'])->group(function () {
-        Route::resource('products', ProductController::class);
+    // Admin and Manager Protected Routes
+    Route::middleware(['role:admin|manager'])->group(function () {
+        // Products Routes
+        Route::prefix('products')->name('products.')->group(function () {
+            Route::get('/', [ProductController::class, 'index'])->name('index');
+            Route::get('/create', [ProductController::class, 'create'])->name('create');
+            Route::post('/', [ProductController::class, 'store'])->name('store');
+            Route::get('/{product}', [ProductController::class, 'show'])->name('show');
+            Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
+            Route::put('/{product}', [ProductController::class, 'update'])->name('update');
+            Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
+        });
 
-        // User management
+        // User Management Routes
         Route::resource('users', UserController::class);
     });
 
-    // Project routes
-    Route::resource('projects', ProjectController::class);
+    // Projects Routes
+    Route::prefix('projects')->name('projects.')->group(function () {
+        Route::get('/', [ProjectController::class, 'index'])->name('index');
+        Route::get('/create', [ProjectController::class, 'create'])->name('create');
+        Route::post('/', [ProjectController::class, 'store'])->name('store');
+        Route::get('/{project}', [ProjectController::class, 'show'])->name('show');
+        Route::get('/{project}/edit', [ProjectController::class, 'edit'])->name('edit');
+        Route::put('/{project}', [ProjectController::class, 'update'])->name('update');
+        Route::delete('/{project}', [ProjectController::class, 'destroy'])->name('destroy');
 
-    // Project approval routes - only accessible by managers
-    Route::middleware(['auth', 'role:manager'])->group(function () {
-        Route::post('/projects/{project}/approve', [ProjectController::class, 'approve'])->name('projects.approve');
-        Route::post('/projects/{project}/reject', [ProjectController::class, 'reject'])->name('projects.reject');
+        // Manager-only Project Actions
+        Route::middleware(['role:manager'])->group(function () {
+            Route::post('/{project}/approve', [ProjectController::class, 'approve'])
+                ->name('approve');
+            Route::post('/{project}/reject', [ProjectController::class, 'reject'])
+                ->name('reject');
+        });
+
+        // Project Conversion (accessible to authenticated users)
+        Route::post('/{project}/convert', [ProjectController::class, 'convert'])
+            ->name('convert');
     });
 
-    // Project conversion route
-    Route::post('/projects/{project}/convert', [ProjectController::class, 'convert'])->name('projects.convert');
+    // Customers Routes
+    Route::prefix('customers')->name('customers.')->group(function () {
+        Route::get('/', [CustomerController::class, 'index'])->name('index');
+        Route::get('/{customer}', [CustomerController::class, 'show'])->name('show');
+        Route::get('/{customer}/edit', [CustomerController::class, 'edit'])->name('edit');
+        Route::put('/{customer}', [CustomerController::class, 'update'])->name('update');
 
-    // Customer routes
-    Route::resource('customers', CustomerController::class)->except(['create', 'store', 'destroy']);
-    Route::post('/customers/{customer}/services', [CustomerController::class, 'addService'])->name('customers.services.add');
-    Route::put('/customers/{customer}/services/{service}', [CustomerController::class, 'updateService'])->name('customers.services.update');
-    Route::delete('/customers/{customer}/services/{service}', [CustomerController::class, 'removeService'])->name('customers.services.remove');
+        // Customer Services Routes
+        Route::post('/{customer}/services', [CustomerController::class, 'addService'])
+            ->name('services.add');
+        Route::put('/{customer}/services/{service}', [CustomerController::class, 'updateService'])
+            ->name('services.update');
+        Route::delete('/{customer}/services/{service}', [CustomerController::class, 'removeService'])
+            ->name('services.remove');
+    });
 });
 
+// Authentication Routes
 require __DIR__.'/auth.php';

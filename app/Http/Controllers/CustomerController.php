@@ -6,24 +6,54 @@ use App\Models\Customer;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class CustomerController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $customers = Customer::with(['lead', 'project'])
-            ->latest()
-            ->paginate(10);
+        $query = Customer::with(['lead', 'project'])
+            ->when($request->input('search'), function ($query, $search) {
+                return $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('customer_id', 'like', "%{$search}%")
+                      ->orWhere('company_name', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->input('status'), function ($query, $status) {
+                return $query->where('is_active', $status === 'active');
+            });
+
+        $customers = $query->latest()->paginate(10)
+            ->withQueryString()
+            ->through(function ($customer) {
+                return [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'company_name' => $customer->company_name,
+                    'email' => $customer->email,
+                    'customer_id' => $customer->customer_id,
+                    'is_active' => $customer->is_active,
+                    'created_at' => $customer->created_at,
+                    'services_count' => $customer->services()->where('status', 'active')->count(),
+                ];
+            });
 
         return Inertia::render('Customers/Index', [
             'customers' => $customers,
+            'filters' => $request->only(['search', 'status']),
         ]);
     }
 
     public function show(Customer $customer)
     {
-        $customer->load(['lead', 'project', 'services']);
+        $customer->load([
+            'lead',
+            'project',
+            'services.product'
+        ]);
 
         return Inertia::render('Customers/Show', [
             'customer' => $customer,
@@ -32,7 +62,6 @@ class CustomerController extends Controller
 
     public function edit(Customer $customer)
     {
-        $customer->load('services');
         $products = Product::where('is_active', true)->get();
 
         return Inertia::render('Customers/Edit', [
@@ -54,44 +83,8 @@ class CustomerController extends Controller
 
         $customer->update($validated);
 
-        return redirect()->route('customers.index')
+        return to_route('customers.show', $customer)
             ->with('success', 'Customer updated successfully');
-    }
-
-    public function manageServices(Request $request, Customer $customer)
-    {
-        $validated = $request->validate([
-            'services' => 'required|array',
-            'services.*.id' => 'required|exists:products,id',
-            'services.*.price' => 'required|numeric|min:0',
-            'services.*.start_date' => 'required|date',
-            'services.*.end_date' => 'nullable|date|after_or_equal:services.*.start_date',
-            'services.*.status' => 'required|in:active,suspended,terminated',
-        ]);
-
-        DB::beginTransaction();
-
-        try {
-            // Sync services
-            $syncData = [];
-            foreach ($validated['services'] as $serviceData) {
-                $syncData[$serviceData['id']] = [
-                    'price' => $serviceData['price'],
-                    'start_date' => $serviceData['start_date'],
-                    'end_date' => $serviceData['end_date'] ?? null,
-                    'status' => $serviceData['status'],
-                ];
-            }
-            $customer->services()->sync($syncData);
-
-            DB::commit();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-
-        return redirect()->route('customers.show', $customer)
-            ->with('success', 'Customer services updated successfully');
     }
 
     public function addService(Request $request, Customer $customer)
@@ -100,17 +93,21 @@ class CustomerController extends Controller
             'product_id' => 'required|exists:products,id',
             'price' => 'required|numeric|min:0',
             'start_date' => 'required|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'end_date' => 'nullable|date|after:start_date',
         ]);
 
-        $customer->services()->attach($validated['product_id'], [
-            'price' => $validated['price'],
-            'start_date' => $validated['start_date'],
-            'end_date' => $validated['end_date'] ?? null,
-            'status' => 'active',
-        ]);
+        try {
+            $customer->services()->attach($validated['product_id'], [
+                'price' => $validated['price'],
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
+                'status' => 'active',
+            ]);
 
-        return back()->with('success', 'Service added successfully');
+            return back()->with('success', 'Service added successfully');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to add service: ' . $e->getMessage());
+        }
     }
 
     public function updateService(Request $request, Customer $customer, $serviceId)
@@ -118,24 +115,32 @@ class CustomerController extends Controller
         $validated = $request->validate([
             'price' => 'required|numeric|min:0',
             'start_date' => 'required|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'end_date' => 'nullable|date|after:start_date',
             'status' => 'required|in:active,suspended,terminated',
         ]);
 
-        $customer->services()->updateExistingPivot($serviceId, [
-            'price' => $validated['price'],
-            'start_date' => $validated['start_date'],
-            'end_date' => $validated['end_date'] ?? null,
-            'status' => $validated['status'],
-        ]);
+        try {
+            $customer->services()->updateExistingPivot($serviceId, [
+                'price' => $validated['price'],
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'] ?? null,
+                'status' => $validated['status'],
+            ]);
 
-        return back()->with('success', 'Service updated successfully');
+            return back()->with('success', 'Service updated successfully');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to update service: ' . $e->getMessage());
+        }
     }
 
     public function removeService(Customer $customer, $serviceId)
     {
-        $customer->services()->detach($serviceId);
+        try {
+            $customer->services()->detach($serviceId);
 
-        return back()->with('success', 'Service removed successfully');
+            return back()->with('success', 'Service removed successfully');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to remove service: ' . $e->getMessage());
+        }
     }
 }

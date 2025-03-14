@@ -42,7 +42,18 @@ class CustomerController extends Controller
             });
 
         return Inertia::render('Customers/Index', [
-            'customers' => $customers,
+            'customers' => [
+                'data' => $customers,
+                'meta' => [
+                    'current_page' => $customers->currentPage(),
+                    'last_page' => $customers->lastPage(),
+                    'from' => $customers->firstItem(),
+                    'to' => $customers->lastItem(),
+                    'total' => $customers->total(),
+                    'per_page' => $customers->perPage(),
+                ],
+                'links' => $customers->linkCollection(),
+            ],
             'filters' => $request->only(['search', 'status']),
         ]);
     }

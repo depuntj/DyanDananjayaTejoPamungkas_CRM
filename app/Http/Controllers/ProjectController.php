@@ -13,17 +13,50 @@ use Inertia\Inertia;
 
 class ProjectController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $projects = Project::with(['lead', 'assignedUser', 'approvedBy'])
+        $query = Project::query()
+            ->with(['lead', 'assignedUser', 'approvedBy', 'products'])
+            ->when($request->search, function($query, $search) {
+                $query->where('name', 'like', "%{$search}%");
+            })
+            ->when($request->status, function($query, $status) {
+                $query->where('status', $status);
+            })
             ->when(Auth::user()->role === 'sales', function ($query) {
                 return $query->where('assigned_to', Auth::id());
-            })
-            ->latest()
-            ->paginate(10);
+            });
+
+        $sortField = $request->sort_field ?? 'created_at';
+        $sortDirection = $request->sort_direction ?? 'desc';
+
+        $projects = $query->orderBy($sortField, $sortDirection)
+            ->paginate($request->per_page ?? 10)
+            ->withQueryString();
+
+        $filters = [
+            'search' => $request->search,
+            'status' => $request->status,
+            'sort_field' => $sortField,
+            'sort_direction' => $sortDirection,
+        ];
 
         return Inertia::render('Projects/Index', [
-            'projects' => $projects,
+            'projects' => [
+                'data' => $projects->items(),
+                'meta' => [
+                    'current_page' => $projects->currentPage(),
+                    'last_page' => $projects->lastPage(),
+                    'from' => $projects->firstItem(),
+                    'to' => $projects->lastItem(),
+                    'total' => $projects->total(),
+                    'per_page' => $projects->perPage(),
+                ],
+                'links' => $projects->linkCollection(),
+
+            ],
+            'filters' => $filters,
+            'statuses' => ['pending', 'approved', 'rejected', 'completed'],
         ]);
     }
 

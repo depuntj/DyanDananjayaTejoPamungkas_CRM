@@ -60,7 +60,7 @@ const props = defineProps<{
 // Get the current user and their role
 const page = usePage();
 const user = computed(() => page.props.auth.user);
-const isManager = computed(() => user.value?.role === 'manager' || user.value?.role === 'admin');
+const isManagerOrAdmin = computed(() => user.value?.role === 'manager' || user.value?.role === 'admin');
 
 // Initialize with values from the URL or props
 const search = ref(props.filters?.search || '');
@@ -93,6 +93,15 @@ const applyFilters = () => {
     });
 };
 
+const statusOptions = [
+    { value: '', label: 'All Statuses' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' },
+    { value: 'in_progress', label: 'In Progress' },
+    { value: 'completed', label: 'Completed' },
+];
+
 const getStatusColor = (status: string) => {
     switch (status) {
         case 'pending':
@@ -116,13 +125,13 @@ const formatDate = (dateString: string) => {
 };
 
 const approveProject = (projectId: number) => {
-    if (isManager.value) {
+    if (isManagerOrAdmin.value) {
         router.post(route('projects.approve', projectId));
     }
 };
 
 const rejectProject = (projectId: number) => {
-    if (isManager.value && confirm('Are you sure you want to reject this project?')) {
+    if (isManagerOrAdmin.value && confirm('Are you sure you want to reject this project?')) {
         router.post(route('projects.reject', projectId));
     }
 };
@@ -130,15 +139,6 @@ const rejectProject = (projectId: number) => {
 const convertToCustomer = (projectId: number) => {
     router.post(route('projects.convert', projectId));
 };
-
-const statusOptions = [
-    { value: '', label: 'All Statuses' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Rejected' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'completed', label: 'Completed' },
-];
 
 // Helper function to resolve user name from ID
 const getUserNameById = (userId: number) => {
@@ -157,6 +157,12 @@ const getAssignedUserName = (project: Project) => {
         return getUserNameById(project.assigned_to);
     }
     return 'Unassigned';
+};
+
+const canInteractWithProject = (project: Project) => {
+    if (isManagerOrAdmin.value) return true;
+
+    return project.assigned_to === user.value?.id;
 };
 </script>
 
@@ -255,26 +261,19 @@ const getAssignedUserName = (project: Project) => {
                             <TableCell>{{ formatDate(project.created_at) }}</TableCell>
                             <TableCell class="text-right">
                                 <div class="flex items-center justify-end gap-2">
-                                    <Button
-                                        v-if="project.status === 'pending' && (user.value?.role === 'manager' || user.value?.role === 'admin')"
-                                        variant="outline"
-                                        size="sm"
-                                        class="text-green-600"
-                                        @click="approveProject(project.id)"
-                                    >
-                                        <CheckCircle class="mr-1 h-4 w-4" />
-                                        Approve
-                                    </Button>
-                                    <Button
-                                        v-if="project.status === 'pending' && (user.value?.role === 'manager' || user.value?.role === 'admin')"
-                                        variant="outline"
-                                        size="sm"
-                                        class="text-red-600"
-                                        @click="rejectProject(project.id)"
-                                    >
-                                        <XCircle class="mr-1 h-4 w-4" />
-                                        Reject
-                                    </Button>
+                                    <!-- Approve/Reject buttons for managers/admins on pending projects -->
+                                    <template v-if="project.status === 'pending' && isManagerOrAdmin">
+                                        <Button variant="outline" size="sm" class="text-green-600" @click="approveProject(project.id)">
+                                            <CheckCircle class="mr-1 h-4 w-4" />
+                                            Approve
+                                        </Button>
+                                        <Button variant="outline" size="sm" class="text-red-600" @click="rejectProject(project.id)">
+                                            <XCircle class="mr-1 h-4 w-4" />
+                                            Reject
+                                        </Button>
+                                    </template>
+
+                                    <!-- Dropdown menu for additional actions -->
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" size="icon" class="h-8 w-8 p-0">
@@ -283,13 +282,21 @@ const getAssignedUserName = (project: Project) => {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
+                                            <!-- View project is always available -->
                                             <DropdownMenuItem asChild>
                                                 <Link :href="route('projects.show', project.id)">View</Link>
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem v-if="project.status !== 'approved' && project.status !== 'completed'" asChild>
+
+                                            <!-- Edit project for pending projects or for assigned/manager/admin -->
+                                            <DropdownMenuItem v-if="project.status === 'pending' || canInteractWithProject(project)" asChild>
                                                 <Link :href="route('projects.edit', project.id)">Edit</Link>
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem v-if="project.status === 'approved'" @click="convertToCustomer(project.id)">
+
+                                            <!-- Convert to customer for approved projects -->
+                                            <DropdownMenuItem
+                                                v-if="project.status === 'approved' && (isManagerOrAdmin || project.assigned_to === user?.id)"
+                                                @click="convertToCustomer(project.id)"
+                                            >
                                                 Convert to Customer
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>

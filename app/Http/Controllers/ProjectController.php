@@ -23,14 +23,10 @@ class ProjectController extends Controller
             })
             ->when($request->status, function($query, $status) {
                 $query->where('status', $status);
+            })
+            ->when(Auth::user()->role === 'sales', function ($query) {
+                return $query->where('assigned_to', Auth::id());
             });
-
-        // Filter projects based on user role
-        if (Auth::user()->role === 'sales') {
-            // Sales users can only see their own projects
-            $query->where('assigned_to', Auth::id());
-        }
-        // Admin and managers can see all projects
 
         $sortField = $request->sort_field ?? 'created_at';
         $sortDirection = $request->sort_direction ?? 'desc';
@@ -108,7 +104,7 @@ class ProjectController extends Controller
             $project = Project::create([
                 'name' => $validated['name'],
                 'lead_id' => $validated['lead_id'],
-                'status' => 'pending',
+                'status' => 'pending', // Always start as pending
                 'assigned_to' => $validated['assigned_to'] ?? Auth::id(),
                 'notes' => $validated['notes'],
             ]);
@@ -131,7 +127,7 @@ class ProjectController extends Controller
         }
 
         return redirect()->route('projects.index')
-            ->with('success', 'Project created successfully');
+            ->with('success', 'Project created successfully and is pending approval');
     }
 
     public function show(Project $project)
@@ -145,6 +141,15 @@ class ProjectController extends Controller
 
     public function edit(Project $project)
     {
+        // Only allow editing if project is not approved/completed and user is sales or manager/admin
+        if (
+            in_array($project->status, ['approved', 'completed']) &&
+            !in_array(Auth::user()->role, ['manager', 'admin']) &&
+            $project->assigned_to !== Auth::id()
+        ) {
+            return back()->with('error', 'You are not authorized to edit this project.');
+        }
+
         $project->load('products');
 
         $leads = Lead::where(function($query) use ($project) {
@@ -166,6 +171,15 @@ class ProjectController extends Controller
 
     public function update(Request $request, Project $project)
     {
+        // Only managers/admins and assigned sales can update
+        if (
+            in_array($project->status, ['approved', 'completed']) &&
+            !in_array(Auth::user()->role, ['manager', 'admin']) &&
+            $project->assigned_to !== Auth::id()
+        ) {
+            return back()->with('error', 'You are not authorized to update this project.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'lead_id' => 'required|exists:leads,id',
@@ -180,11 +194,6 @@ class ProjectController extends Controller
         // Handle empty assigned_to
         if ($validated['assigned_to'] === '') {
             $validated['assigned_to'] = null;
-        }
-
-        // Only managers can update projects that are already approved
-        if ($project->status === 'approved' && Auth::user()->role !== 'manager') {
-            return back()->with('error', 'You cannot edit an approved project.');
         }
 
         DB::beginTransaction();
@@ -219,8 +228,15 @@ class ProjectController extends Controller
 
     public function destroy(Project $project)
     {
-        if ($project->status === 'approved') {
-            return back()->with('error', 'You cannot delete an approved project.');
+        // Only allow deleting pending projects
+        if ($project->status !== 'pending') {
+            return back()->with('error', 'Only pending projects can be deleted.');
+        }
+
+        // Only sales, managers, and admins can delete
+        if (!in_array(Auth::user()->role, ['sales', 'manager', 'admin']) ||
+            (Auth::user()->role === 'sales' && $project->assigned_to !== Auth::id())) {
+            return back()->with('error', 'You are not authorized to delete this project.');
         }
 
         $project->delete();
@@ -231,14 +247,25 @@ class ProjectController extends Controller
 
     public function approve(Project $project)
     {
-        if (!auth()->user()->isAdmin() && !auth()->user()->isManager()) {
-            return back()->with('error', 'Only managers or admins can approve projects.');
+        // Only managers and admins can approve
+        if (!in_array(Auth::user()->role, ['manager', 'admin'])) {
+            return back()->with('error', 'Only managers and admins can approve projects.');
+        }
+
+        // Only pending projects can be approved
+        if ($project->status !== 'pending') {
+            return back()->with('error', 'Only pending projects can be approved.');
         }
 
         $project->update([
             'status' => 'approved',
-            'approved_by' => auth()->id(),
+            'approved_by' => Auth::id(),
             'approved_at' => now(),
+        ]);
+
+        // Update lead status to negotiation stage
+        $project->lead->update([
+            'status' => 'negotiation'
         ]);
 
         return back()->with('success', 'Project approved successfully');
@@ -246,12 +273,23 @@ class ProjectController extends Controller
 
     public function reject(Project $project)
     {
-        if (!auth()->user()->isAdmin() && !auth()->user()->isManager()) {
-            return back()->with('error', 'Only managers or admins can reject projects.');
+        // Only managers and admins can reject
+        if (!in_array(Auth::user()->role, ['manager', 'admin'])) {
+            return back()->with('error', 'Only managers and admins can reject projects.');
+        }
+
+        // Only pending projects can be rejected
+        if ($project->status !== 'pending') {
+            return back()->with('error', 'Only pending projects can be rejected.');
         }
 
         $project->update([
             'status' => 'rejected',
+        ]);
+
+        // Update lead status to indicate rejection
+        $project->lead->update([
+            'status' => 'lost'
         ]);
 
         return back()->with('success', 'Project rejected successfully');
@@ -259,8 +297,14 @@ class ProjectController extends Controller
 
     public function convert(Project $project)
     {
+        // Only approved projects can be converted
         if ($project->status !== 'approved') {
             return back()->with('error', 'Only approved projects can be converted to customers.');
+        }
+
+        // Restrict conversion to managers, admins, and assigned sales
+        if (!in_array(Auth::user()->role, ['manager', 'admin']) && $project->assigned_to !== Auth::id()) {
+            return back()->with('error', 'You are not authorized to convert this project.');
         }
 
         DB::beginTransaction();

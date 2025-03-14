@@ -5,9 +5,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { CheckCircle, Edit, ExternalLink, Trash2, UserCheck, XCircle } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 interface ProjectProduct {
     id: number;
@@ -50,27 +50,67 @@ const props = defineProps<{
     project: Project;
 }>();
 
+// Get current user info
+const page = usePage();
+const user = computed(() => page.props.auth.user);
+
+// Check if current user is manager or admin
+const isManagerOrAdmin = computed(() => user.value?.role === 'manager' || user.value?.role === 'admin');
+
+// Check if current user can interact with this project
+const canInteractWithProject = computed(() => {
+    // Managers and admins can always interact
+    if (isManagerOrAdmin.value) return true;
+
+    // Sales users can interact with their own projects
+    return props.project.assignedUser?.id === user.value?.id;
+});
+
 const deleteConfirmOpen = ref(false);
 
 const deleteProject = () => {
+    // Only pending projects can be deleted
     router.delete(route('projects.destroy', props.project.id), {
         onSuccess: () => {
             deleteConfirmOpen.value = false;
+        },
+        onError: (errors) => {
+            // Show error message from backend
+            alert(errors.error || 'Failed to delete project');
         },
     });
 };
 
 const approveProject = () => {
+    // Only managers and admins can approve
+    if (!isManagerOrAdmin.value) {
+        alert('Only managers and admins can approve projects.');
+        return;
+    }
+
     router.post(route('projects.approve', props.project.id));
 };
 
 const rejectProject = () => {
+    // Only managers and admins can reject
+    if (!isManagerOrAdmin.value) {
+        alert('Only managers and admins can reject projects.');
+        return;
+    }
+
     if (confirm('Are you sure you want to reject this project?')) {
         router.post(route('projects.reject', props.project.id));
     }
 };
 
 const convertToCustomer = () => {
+    // Conversion allowed for approved projects
+    // by managers, admins, or assigned sales
+    if (props.project.status !== 'approved') {
+        alert('Only approved projects can be converted to customers.');
+        return;
+    }
+
     router.post(route('projects.convert', props.project.id));
 };
 
@@ -102,9 +142,11 @@ const getStatusColor = (status: string) => {
 };
 
 // Calculate total project value
-const totalProjectValue = props.project.products.reduce((total, product) => {
-    return total + product.pivot.price * product.pivot.quantity;
-}, 0);
+const totalProjectValue = computed(() =>
+    props.project.products.reduce((total, product) => {
+        return total + product.pivot.price * product.pivot.quantity;
+    }, 0),
+);
 </script>
 
 <template>
@@ -118,13 +160,19 @@ const totalProjectValue = props.project.products.reduce((total, product) => {
                     <p class="text-muted-foreground">Project details and information</p>
                 </div>
                 <div class="flex gap-2">
-                    <Link v-if="project.status !== 'approved' && project.status !== 'completed'" :href="route('projects.edit', project.id)">
+                    <!-- Edit button for pending projects or for authorized users -->
+                    <Link
+                        v-if="project.status !== 'approved' && project.status !== 'completed' && canInteractWithProject"
+                        :href="route('projects.edit', project.id)"
+                    >
                         <Button variant="outline" size="sm" class="flex items-center">
                             <Edit class="mr-2 h-4 w-4" />
                             Edit
                         </Button>
                     </Link>
-                    <Dialog v-model:open="deleteConfirmOpen" v-if="project.status !== 'approved' && project.status !== 'completed'">
+
+                    <!-- Delete button for pending projects -->
+                    <Dialog v-if="project.status === 'pending'" v-model:open="deleteConfirmOpen">
                         <DialogTrigger asChild>
                             <Button variant="destructive" size="sm" class="flex items-center">
                                 <Trash2 class="mr-2 h-4 w-4" />
@@ -145,27 +193,26 @@ const totalProjectValue = props.project.products.reduce((total, product) => {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
+
+                    <!-- Approve/Reject buttons for pending projects by managers/admins -->
+                    <template v-if="project.status === 'pending' && isManagerOrAdmin">
+                        <Button variant="outline" size="sm" class="flex items-center text-green-600" @click="approveProject">
+                            <CheckCircle class="mr-2 h-4 w-4" />
+                            Approve
+                        </Button>
+                        <Button variant="outline" size="sm" class="flex items-center text-red-600" @click="rejectProject">
+                            <XCircle class="mr-2 h-4 w-4" />
+                            Reject
+                        </Button>
+                    </template>
+
+                    <!-- Convert to Customer button for approved projects -->
                     <Button
-                        v-if="project.status === 'pending'"
-                        variant="outline"
+                        v-if="project.status === 'approved' && (isManagerOrAdmin || project.assignedUser?.id === user?.id)"
                         size="sm"
-                        class="flex items-center text-green-600"
-                        @click="approveProject"
+                        class="flex items-center"
+                        @click="convertToCustomer"
                     >
-                        <CheckCircle class="mr-2 h-4 w-4" />
-                        Approve
-                    </Button>
-                    <Button
-                        v-if="project.status === 'pending'"
-                        variant="outline"
-                        size="sm"
-                        class="flex items-center text-red-600"
-                        @click="rejectProject"
-                    >
-                        <XCircle class="mr-2 h-4 w-4" />
-                        Reject
-                    </Button>
-                    <Button v-if="project.status === 'approved'" size="sm" class="flex items-center" @click="convertToCustomer">
                         <UserCheck class="mr-2 h-4 w-4" />
                         Convert to Customer
                     </Button>

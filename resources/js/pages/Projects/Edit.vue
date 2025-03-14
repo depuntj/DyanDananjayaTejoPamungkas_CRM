@@ -60,6 +60,7 @@ interface ProjectForm {
     assigned_to: string;
     notes: string;
     products: FormProduct[];
+    [key: string]: any;
 }
 
 const props = defineProps<{
@@ -111,13 +112,18 @@ const setProductPrice = (index: number, productId: string) => {
 const total = computed(() => {
     return form.products.reduce((sum, item) => {
         const price = parseFloat(item.price) || 0;
-        const quantity = parseInt(item.quantity.toString()) || 0;
+        const quantity = Number(item.quantity) || 0;
         return sum + price * quantity;
     }, 0);
 });
 
 const submit = () => {
     form.put(route('projects.update', props.project.id));
+};
+
+// Navigation handler to replace $router.go(-1)
+const goBack = () => {
+    window.history.back();
 };
 </script>
 
@@ -240,7 +246,11 @@ const submit = () => {
                                         <!-- Product Selection -->
                                         <div class="space-y-2">
                                             <Label :for="`product-${index}`" required>Product</Label>
-                                            <Select v-model="form.products[index].id" required @update:modelValue="setProductPrice(index, $event)">
+                                            <Select
+                                                v-model="form.products[index].id"
+                                                required
+                                                @update:modelValue="(val: string) => setProductPrice(index, val)"
+                                            >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select a product" />
                                                 </SelectTrigger>
@@ -250,21 +260,21 @@ const submit = () => {
                                                     </SelectItem>
                                                 </SelectContent>
                                             </Select>
-                                            <InputError :message="form.errors[`products.${index}.id`]" />
+                                            <InputError :message="form.errors[`products.${index}.id`] as string" />
                                         </div>
 
                                         <!-- Price -->
                                         <div class="space-y-2">
                                             <Label :for="`price-${index}`" required>Price (IDR)</Label>
                                             <Input :id="`price-${index}`" type="number" v-model="form.products[index].price" required min="0" />
-                                            <InputError :message="form.errors[`products.${index}.price`]" />
+                                            <InputError :message="form.errors[`products.${index}.price`] as string" />
                                         </div>
 
                                         <!-- Quantity -->
                                         <div class="space-y-2">
                                             <Label :for="`quantity-${index}`" required>Quantity</Label>
                                             <Input :id="`quantity-${index}`" type="number" v-model="form.products[index].quantity" required min="1" />
-                                            <InputError :message="form.errors[`products.${index}.quantity`]" />
+                                            <InputError :message="form.errors[`products.${index}.quantity`] as string" />
                                         </div>
                                     </div>
 
@@ -274,8 +284,7 @@ const submit = () => {
                                             Subtotal:
                                             {{
                                                 formatCurrency(
-                                                    (parseFloat(form.products[index].price) || 0) *
-                                                        (parseInt(form.products[index].quantity.toString()) || 0),
+                                                    (parseFloat(form.products[index].price) || 0) * (Number(form.products[index].quantity) || 0),
                                                 )
                                             }}
                                         </span>
@@ -287,7 +296,7 @@ const submit = () => {
                             </div>
                         </CardContent>
                         <CardFooter class="flex justify-between">
-                            <Button type="button" variant="outline" :disabled="form.processing" @click="$router.go(-1)"> Cancel </Button>
+                            <Button type="button" variant="outline" :disabled="form.processing" @click="goBack"> Cancel </Button>
                             <Button type="submit" :disabled="form.processing"> Update Project </Button>
                         </CardFooter>
                     </Card>

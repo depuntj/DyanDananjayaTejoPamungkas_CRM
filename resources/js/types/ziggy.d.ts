@@ -8,5 +8,6 @@ declare global {
 declare module '@vue/runtime-core' {
     interface ComponentCustomProperties {
         route: typeof route;
+        $router: any;
     }
 }

@@ -10,6 +10,19 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
+// Define types for form data
+interface LeadForm {
+    name: string;
+    company_name: string | null;
+    email: string;
+    phone: string;
+    address: string;
+    notes: string | null;
+    status: string;
+    assigned_to: number | null;
+    [key: string]: any;
+}
+
 const props = defineProps<{
     lead: {
         id: number;
@@ -28,7 +41,8 @@ const props = defineProps<{
     }>;
 }>();
 
-const form = useForm({
+// Initialize form with proper type
+const form = useForm<LeadForm>({
     name: props.lead.name,
     company_name: props.lead.company_name,
     email: props.lead.email,
@@ -38,17 +52,26 @@ const form = useForm({
     status: props.lead.status,
     assigned_to: props.lead.assigned_to,
 });
+
 const notesValue = computed({
-    get: () => form.notes ?? undefined,
+    get: () => form.notes as string | undefined,
     set: (value: string | undefined) => {
-        form.notes = value ?? null;
+        form.notes = value === undefined ? null : value;
     },
 });
 
 const companyNameValue = computed({
-    get: () => form.company_name ?? undefined,
+    get: () => form.company_name as string | undefined,
     set: (value: string | undefined) => {
-        form.company_name = value ?? null;
+        form.company_name = value === undefined ? null : value;
+    },
+});
+
+// Type-safe computed property for assigned_to
+const assignedToValue = computed<string>({
+    get: () => form.assigned_to?.toString() ?? '',
+    set: (value: string) => {
+        form.assigned_to = value ? Number(value) : null;
     },
 });
 
@@ -84,17 +107,17 @@ const statusOptions = [
                     </CardHeader>
                     <CardContent class="space-y-6">
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                            <!-- Company Name -->
+                            <!-- Name -->
                             <div class="space-y-2">
-                                <Label for="company_name">Company Name</Label>
-                                <Input id="company_name" v-model="companyNameValue" />
-                                <InputError :message="form.errors.company_name" />
+                                <Label for="name" required>Name</Label>
+                                <Input id="name" v-model="form.name" required />
+                                <InputError :message="form.errors.name" />
                             </div>
 
                             <!-- Company Name -->
                             <div class="space-y-2">
                                 <Label for="company_name">Company Name</Label>
-                                <Input id="company_name" v-model="form.company_name" />
+                                <Input id="company_name" v-model="companyNameValue" />
                                 <InputError :message="form.errors.company_name" />
                             </div>
 
@@ -131,13 +154,13 @@ const statusOptions = [
                             <!-- Assigned To -->
                             <div class="space-y-2">
                                 <Label for="assigned_to">Assign To</Label>
-                                <Select v-model="form.assigned_to">
+                                <Select v-model="assignedToValue">
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select a sales representative" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem :value="null">Unassigned</SelectItem>
-                                        <SelectItem v-for="user in salesUsers" :key="user.id" :value="user.id">
+                                        <SelectItem value="">Unassigned</SelectItem>
+                                        <SelectItem v-for="user in salesUsers" :key="user.id" :value="user.id.toString()">
                                             {{ user.name }}
                                         </SelectItem>
                                     </SelectContent>

@@ -23,10 +23,14 @@ class ProjectController extends Controller
             })
             ->when($request->status, function($query, $status) {
                 $query->where('status', $status);
-            })
-            ->when(Auth::user()->role === 'sales', function ($query) {
-                return $query->where('assigned_to', Auth::id());
             });
+
+        // Filter projects based on user role
+        if (Auth::user()->role === 'sales') {
+            // Sales users can only see their own projects
+            $query->where('assigned_to', Auth::id());
+        }
+        // Admin and managers can see all projects
 
         $sortField = $request->sort_field ?? 'created_at';
         $sortDirection = $request->sort_direction ?? 'desc';
@@ -36,7 +40,6 @@ class ProjectController extends Controller
             ->withQueryString();
 
         $salesUsers = User::where('role', 'sales')->get();
-
 
         return Inertia::render('Projects/Index', [
             'projects' => [
@@ -228,13 +231,13 @@ class ProjectController extends Controller
 
     public function approve(Project $project)
     {
-        if (Auth::user()->role !== 'manager') {
-            return back()->with('error', 'Only managers can approve projects.');
+        if (!auth()->user()->isAdmin() && !auth()->user()->isManager()) {
+            return back()->with('error', 'Only managers or admins can approve projects.');
         }
 
         $project->update([
             'status' => 'approved',
-            'approved_by' => Auth::id(),
+            'approved_by' => auth()->id(),
             'approved_at' => now(),
         ]);
 
@@ -243,8 +246,8 @@ class ProjectController extends Controller
 
     public function reject(Project $project)
     {
-        if (Auth::user()->role !== 'manager') {
-            return back()->with('error', 'Only managers can reject projects.');
+        if (!auth()->user()->isAdmin() && !auth()->user()->isManager()) {
+            return back()->with('error', 'Only managers or admins can reject projects.');
         }
 
         $project->update([

@@ -12,7 +12,6 @@ class ProjectSeeder extends Seeder
 {
     public function run(): void
     {
-        // Get existing data to reference
         $leads = Lead::where('status', '!=', 'converted')->get();
         $salesUsers = User::where('role', 'sales')->get();
         $managerUser = User::where('role', 'manager')->first();
@@ -23,11 +22,10 @@ class ProjectSeeder extends Seeder
             return;
         }
 
-        // Create a few sample projects
         $projects = [
             [
                 'name' => 'Office Internet Installation',
-                'status' => 'pending',
+                'status' => 'approved',
                 'notes' => 'Customer needs high-speed fiber for their new office location.',
             ],
             [
@@ -37,18 +35,17 @@ class ProjectSeeder extends Seeder
             ],
             [
                 'name' => 'Multi-location Business Setup',
-                'status' => 'in_progress',
+                'status' => 'rejected',
                 'notes' => 'Corporate client with multiple branch offices requiring synchronized setup.',
             ],
             [
                 'name' => 'Small Business Starter',
-                'status' => 'pending',
+                'status' => 'rejected',
                 'notes' => 'New cafe opening next month needs reliable internet for point of sale and customer wifi.',
             ],
         ];
 
         foreach ($projects as $projectData) {
-            // Create the project with random lead and sales assignment
             $lead = $leads->random();
             $salesUser = $salesUsers->random();
 
@@ -60,7 +57,6 @@ class ProjectSeeder extends Seeder
                 'notes' => $projectData['notes'],
             ]);
 
-            // If status is approved, add approval info
             if ($project->status === 'approved') {
                 $project->update([
                     'approved_by' => $managerUser->id,
@@ -68,16 +64,14 @@ class ProjectSeeder extends Seeder
                 ]);
             }
 
-            // Attach 1-3 random products to each project
             $projectProducts = $products->random(rand(1, 3));
             foreach ($projectProducts as $product) {
                 $project->products()->attach($product->id, [
-                    'price' => $product->price * (rand(80, 120) / 100), // Add some price variance
+                    'price' => $product->price * (rand(80, 120) / 100), 
                     'quantity' => rand(1, 3),
                 ]);
             }
 
-            // Update lead status based on project status
             if ($project->status === 'pending' || $project->status === 'in_progress') {
                 $lead->update(['status' => 'proposal']);
             } elseif ($project->status === 'approved') {

@@ -30,7 +30,7 @@ class UserSeeder extends Seeder
 
         if (!User::where('email', 'sales1@ptsmart.com')->exists()) {
             User::create([
-                'name' => 'Sales User1',
+                'name' => 'Sales HAWA 1',
                 'email' => 'sales1@ptsmart.com',
                 'password' => Hash::make('password'),
                 'role' => 'sales',
@@ -38,7 +38,7 @@ class UserSeeder extends Seeder
         }
         if (!User::where('email', 'sales2@ptsmart.com')->exists()) {
             User::create([
-                'name' => 'Sales User2',
+                'name' => 'Sales ADAM 2',
                 'email' => 'sales2@ptsmart.com',
                 'password' => Hash::make('password'),
                 'role' => 'sales',

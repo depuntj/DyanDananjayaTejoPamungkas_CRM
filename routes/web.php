@@ -24,7 +24,7 @@ Route::middleware(['auth'])->group(function () {
         ->name('dashboard');
 
     // Leads Routes
-    Route::prefix('leads')->name('leads.')->group(function () {
+        Route::prefix('leads')->name('leads.')->group(function () {
         Route::get('/', [LeadController::class, 'index'])->name('index');
         Route::get('/create', [LeadController::class, 'create'])->name('create');
         Route::post('/', [LeadController::class, 'store'])->name('store');

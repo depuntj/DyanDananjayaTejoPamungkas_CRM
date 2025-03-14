@@ -22,9 +22,23 @@ class Lead extends Model
         'assigned_to',
     ];
 
+    protected $casts = [
+        'assigned_to' => 'integer',
+    ];
+
+    public function getAssignedToAttribute($value)
+    {
+        return $value === 0 || $value === null ? null : (int)$value;
+    }
+
+    public function setAssignedToAttribute($value)
+    {
+        $this->attributes['assigned_to'] = is_numeric($value) && (int)$value > 0 ? (int)$value : null;
+    }
+
     public function assignedUser()
     {
-        return $this->belongsTo(User::class, 'assigned_to');
+        return $this->belongsTo(User::class, 'assigned_to', 'id');
     }
 
     public function projects(): HasMany

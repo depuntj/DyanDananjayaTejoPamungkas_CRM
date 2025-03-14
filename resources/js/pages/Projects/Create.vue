@@ -4,11 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea/Index';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 
 interface Lead {
     id: number;
@@ -27,12 +26,6 @@ interface Product {
     price: number;
     speed: string;
     type: string;
-}
-
-interface FormProduct {
-    id: string;
-    quantity: number;
-    price: string;
 }
 
 const props = defineProps<{
@@ -84,6 +77,33 @@ const total = computed(() => {
     }, 0);
 });
 
+// Track the selected lead and display text
+const selectedLead = computed(() => {
+    if (!form.lead_id) return 'Select a lead';
+    const lead = props.leads.find((l) => l.id.toString() === form.lead_id);
+    return lead ? `${lead.name} ${lead.company_name ? `(${lead.company_name})` : ''}` : 'Select a lead';
+});
+
+// Track selected products and their display text
+const getSelectedProductName = (productId: string) => {
+    if (!productId) return 'Select a product';
+    const product = props.products.find((p) => p.id.toString() === productId);
+    return product ? `${product.name} (${product.speed})` : 'Select a product';
+};
+
+// Watch for product selection to update prices
+watch(
+    () => form.products,
+    (newProducts) => {
+        newProducts.forEach((product, index) => {
+            if (product.id) {
+                setProductPrice(index, product.id);
+            }
+        });
+    },
+    { deep: true },
+);
+
 const submit = () => {
     form.post(route('projects.store'));
 };
@@ -122,32 +142,69 @@ const goBack = () => {
                             <!-- Lead Selection -->
                             <div class="space-y-2">
                                 <Label for="lead_id" required>Lead</Label>
-                                <Select v-model="form.lead_id" required>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a lead" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem v-for="lead in leads" :key="lead.id" :value="lead.id.toString()">
+                                <div class="relative">
+                                    <select
+                                        id="lead_id"
+                                        v-model="form.lead_id"
+                                        required
+                                        class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    >
+                                        <option value="" disabled>Select a lead</option>
+                                        <option v-for="lead in leads" :key="lead.id" :value="lead.id.toString()">
                                             {{ lead.name }} {{ lead.company_name ? `(${lead.company_name})` : '' }}
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                        </option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="24"
+                                            height="24"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            class="h-4 w-4 opacity-50"
+                                        >
+                                            <path d="m6 9 6 6 6-6"></path>
+                                        </svg>
+                                    </div>
+                                </div>
                                 <InputError :message="form.errors.lead_id" />
                             </div>
 
                             <!-- Assigned To -->
                             <div class="space-y-2">
                                 <Label for="assigned_to">Assign To</Label>
-                                <select
-                                    id="assigned_to"
-                                    v-model="form.assigned_to"
-                                    class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                >
-                                    <option value="">Unassigned</option>
-                                    <option v-for="user in salesUsers" :key="user.id" :value="user.id.toString()">
-                                        {{ user.name }}
-                                    </option>
-                                </select>
+                                <div class="relative">
+                                    <select
+                                        id="assigned_to"
+                                        v-model="form.assigned_to"
+                                        class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    >
+                                        <option value="">Unassigned</option>
+                                        <option v-for="user in salesUsers" :key="user.id" :value="user.id.toString()">
+                                            {{ user.name }}
+                                        </option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="24"
+                                            height="24"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            class="h-4 w-4 opacity-50"
+                                        >
+                                            <path d="m6 9 6 6 6-6"></path>
+                                        </svg>
+                                    </div>
+                                </div>
                                 <InputError :message="form.errors.assigned_to" />
                             </div>
 
@@ -209,20 +266,36 @@ const goBack = () => {
                                         <!-- Product Selection -->
                                         <div class="space-y-2">
                                             <Label :for="`product-${index}`" required>Product</Label>
-                                            <Select
-                                                v-model="form.products[index].id"
-                                                required
-                                                @update:modelValue="(val: string) => setProductPrice(index, val)"
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select a product" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem v-for="product in products" :key="product.id" :value="product.id.toString()">
-                                                        {{ product.name }} ({{ product.speed }})
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <div class="relative">
+                                                <select
+                                                    :id="`product-${index}`"
+                                                    v-model="form.products[index].id"
+                                                    @change="setProductPrice(index, form.products[index].id)"
+                                                    required
+                                                    class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                >
+                                                    <option value="" disabled>Select a product</option>
+                                                    <option v-for="p in products" :key="p.id" :value="p.id.toString()">
+                                                        {{ p.name }} ({{ p.speed }})
+                                                    </option>
+                                                </select>
+                                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                                                    <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        width="24"
+                                                        height="24"
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        stroke-width="2"
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        class="h-4 w-4 opacity-50"
+                                                    >
+                                                        <path d="m6 9 6 6 6-6"></path>
+                                                    </svg>
+                                                </div>
+                                            </div>
                                             <InputError :message="form.errors[`products.${index}.id`] as string" />
                                         </div>
 

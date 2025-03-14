@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea/Index';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
 
 const props = defineProps<{
     salesUsers: Array<{
@@ -25,8 +24,6 @@ const form = useForm({
     notes: '',
     assigned_to: '',
 });
-
-const assignedToRef = ref<string | null>(null);
 
 const submit = () => {
     form.post(route('leads.store'));

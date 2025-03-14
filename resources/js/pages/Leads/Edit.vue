@@ -1,3 +1,4 @@
+<!-- resources/js/pages/Leads/Edit.vue -->
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -37,7 +38,7 @@ const form = useForm({
     address: props.lead.address,
     notes: props.lead.notes || '',
     status: props.lead.status,
-    assigned_to: props.lead.assigned_to === null ? '' : props.lead.assigned_to,
+    assigned_to: props.lead.assigned_to === null ? '' : props.lead.assigned_to.toString(),
 });
 
 // Status options with proper capitalization
@@ -55,20 +56,7 @@ const statusOptions = [
 const selectedStatusLabel = computed(() => statusOptions.find((option) => option.value === form.status)?.label || 'Select Status');
 
 const submit = () => {
-    const formData = {
-        name: form.value.name,
-        company_name: form.value.company_name,
-        email: form.value.email,
-        phone: form.value.phone,
-        address: form.value.address,
-        notes: form.value.notes,
-        status: form.value.status,
-        assigned_to: form.value.assigned_to === '' ? null : Number(form.value.assigned_to),
-    };
-
-    console.log('Submitting with assigned_to:', formData.assigned_to);
-
-    router.put(route('leads.update', props.lead.id), formData);
+    form.put(route('leads.update', props.lead.id));
 };
 </script>
 
@@ -144,10 +132,11 @@ const submit = () => {
                                     class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                 >
                                     <option value="">Unassigned</option>
-                                    <option v-for="user in salesUsers" :key="user.id" :value="user.id">
+                                    <option v-for="user in salesUsers" :key="user.id" :value="user.id.toString()">
                                         {{ user.name }}
                                     </option>
                                 </select>
+                                <InputError :message="form.errors.assigned_to" />
                             </div>
                         </div>
 

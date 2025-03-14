@@ -4,9 +4,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { MoreHorizontal, Plus, Search } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 const props = defineProps<{
     leads: {
@@ -45,35 +45,34 @@ const props = defineProps<{
 
 // Initialize search with props value
 const search = ref(props.filters.search || '');
+const statusFilter = ref(props.filters.status || '');
 
-// Function to handle search submission
-function handleSearch() {
-    const params = new URLSearchParams();
+// Debounce search input
+let searchTimeout: ReturnType<typeof setTimeout>;
+watch(search, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        applyFilters();
+    }, 500);
+});
 
-    if (search.value) {
-        params.append('search', search.value);
-    }
+// Apply filters immediately when status filter changes
+watch(statusFilter, () => {
+    applyFilters();
+});
 
-    if (props.filters.status) {
-        params.append('status', props.filters.status);
-    }
-
-    window.location.href = `${route('leads.index')}?${params.toString()}`;
-}
-
-// Function to change status filter
-function changeStatus(newStatus) {
-    const params = new URLSearchParams();
-
-    if (search.value) {
-        params.append('search', search.value);
-    }
-
-    if (newStatus) {
-        params.append('status', newStatus);
-    }
-
-    window.location.href = `${route('leads.index')}?${params.toString()}`;
+function applyFilters() {
+    router.get(
+        route('leads.index'),
+        {
+            search: search.value,
+            status: statusFilter.value,
+        },
+        {
+            preserveState: true,
+            replace: true,
+        },
+    );
 }
 
 const statusOptions = [
@@ -132,19 +131,13 @@ const formatDate = (dateString: string) => {
             <!-- Filters -->
             <div class="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                 <div class="w-full sm:max-w-xs">
-                    <form @submit.prevent="handleSearch">
-                        <div class="relative">
-                            <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input type="search" placeholder="Search leads..." class="pl-8" v-model="search" />
-                        </div>
-                    </form>
+                    <div class="relative">
+                        <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input type="search" placeholder="Search leads..." class="pl-8" v-model="search" />
+                    </div>
                 </div>
                 <div class="flex w-full items-center gap-3 sm:w-auto">
-                    <select
-                        :value="props.filters.status"
-                        @change="e => changeStatus(e.target.value)"
-                        class="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
+                    <select v-model="statusFilter" class="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
                         <option v-for="option in statusOptions" :key="option.value" :value="option.value">
                             {{ option.label }}
                         </option>
@@ -202,7 +195,7 @@ const formatDate = (dateString: string) => {
                                             <Link :href="route('leads.edit', lead.id)">Edit</Link>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem asChild>
-                                            <Link :href="route('projects.create')" :data="{ lead_id: lead.id }">Create Project</Link>
+                                            <Link :href="route('projects.create', { lead_id: lead.id })">Create Project</Link>
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -227,30 +220,29 @@ const formatDate = (dateString: string) => {
             <div v-if="leads.meta.last_page > 1" class="mt-4 flex items-center justify-between">
                 <div class="text-sm text-muted-foreground">Showing {{ leads.meta.from }} to {{ leads.meta.to }} of {{ leads.meta.total }} leads</div>
                 <div class="flex items-center space-x-2">
-
+                    <Link
                         v-if="leads.meta.current_page > 1"
-                        :href="`${route('leads.index')}?page=${leads.meta.current_page - 1}${props.filters.search ? '&search=' + props.filters.search : ''}${props.filters.status ? '&status=' + props.filters.status : ''}`"
+                        :href="route('leads.index', { page: leads.meta.current_page - 1, search: search, status: statusFilter })"
                         class="rounded-md bg-muted px-3 py-1 hover:bg-muted-foreground/10"
                     >
                         Previous
-                    </a>
-                    <div v-for="(link, i) in leads.links.slice(1, -1)" :key="i">
-
-                            v-if="link.url"
-                            :href="`${link.url}${props.filters.status ? '&status=' + props.filters.status : ''}${props.filters.search ? '&search=' + props.filters.search : ''}`"
-                            class="rounded-md px-3 py-1"
-                            :class="link.active ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted-foreground/10'"
-                        >
-                            {{ link.label }}
-                        </a>
-                    </div>
-
+                    </Link>
+                    <Link
+                        v-for="page in leads.meta.last_page"
+                        :key="page"
+                        :href="route('leads.index', { page, search: search, status: statusFilter })"
+                        class="rounded-md px-3 py-1"
+                        :class="page === leads.meta.current_page ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted-foreground/10'"
+                    >
+                        {{ page }}
+                    </Link>
+                    <Link
                         v-if="leads.meta.current_page < leads.meta.last_page"
-                        :href="`${route('leads.index')}?page=${leads.meta.current_page + 1}${props.filters.search ? '&search=' + props.filters.search : ''}${props.filters.status ? '&status=' + props.filters.status : ''}`"
+                        :href="route('leads.index', { page: leads.meta.current_page + 1, search: search, status: statusFilter })"
                         class="rounded-md bg-muted px-3 py-1 hover:bg-muted-foreground/10"
                     >
                         Next
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>

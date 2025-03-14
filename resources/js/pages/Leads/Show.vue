@@ -21,6 +21,7 @@ const props = defineProps<{
         status: string;
         created_at: string;
         updated_at: string;
+        assigned_to: number | null; // Added explicit assigned_to property
         assignedUser: {
             id: number;
             name: string;
@@ -194,7 +195,17 @@ const formatDate = (dateString: string) => {
 
                             <div>
                                 <h3 class="text-sm font-medium text-muted-foreground">Assigned To</h3>
-                                <p>{{ lead.assignedUser ? lead.assignedUser.name : 'Unassigned' }}</p>
+                                <!-- Updated logic for assigned user display -->
+                                <p v-if="lead.assigned_to && lead.assignedUser">{{ lead.assignedUser.name }}</p>
+                                <p v-else-if="lead.assigned_to">Sales User {{ lead.assigned_to }}</p>
+                                <p v-else>Unassigned</p>
+
+                                <!-- Debug info - uncomment if needed
+                                <p class="text-xs text-gray-500">
+                                    assigned_to: {{ lead.assigned_to }},
+                                    has assignedUser: {{ lead.assignedUser ? 'yes' : 'no' }}
+                                </p>
+                                -->
                             </div>
 
                             <div v-if="lead.status !== 'converted'">

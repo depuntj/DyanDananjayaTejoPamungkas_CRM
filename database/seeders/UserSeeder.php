@@ -28,10 +28,18 @@ class UserSeeder extends Seeder
             ]);
         }
 
-        if (!User::where('email', 'sales@ptsmart.com')->exists()) {
+        if (!User::where('email', 'sales1@ptsmart.com')->exists()) {
             User::create([
-                'name' => 'Sales User',
-                'email' => 'sales@ptsmart.com',
+                'name' => 'Sales User1',
+                'email' => 'sales1@ptsmart.com',
+                'password' => Hash::make('password'),
+                'role' => 'sales',
+            ]);
+        }
+        if (!User::where('email', 'sales2@ptsmart.com')->exists()) {
+            User::create([
+                'name' => 'Sales User2',
+                'email' => 'sales2@ptsmart.com',
                 'password' => Hash::make('password'),
                 'role' => 'sales',
             ]);

@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea/Index';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
-defineProps<{
+const props = defineProps<{
     salesUsers: Array<{
         id: number;
         name: string;
@@ -23,10 +24,14 @@ const form = useForm({
     phone: '',
     address: '',
     notes: '',
-    assigned_to: undefined as string | undefined,
+    assigned_to: null as number | null,
 });
 
+const assignedToRef = ref<string | null>(null);
+
 const submit = () => {
+    // Convert the selected value to a number or null
+    form.assigned_to = assignedToRef.value ? Number(assignedToRef.value) : null;
     form.post(route('leads.store'));
 };
 </script>
@@ -79,13 +84,13 @@ const submit = () => {
                             <!-- Assigned To -->
                             <div class="space-y-2">
                                 <Label for="assigned_to">Assign To</Label>
-                                <Select v-model="form.assigned_to">
+                                <Select v-model="assignedToRef">
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select a sales representative" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="">Unassigned</SelectItem>
-                                        <SelectItem v-for="user in salesUsers" :key="user.id" :value="String(user.id)">
+                                        <SelectItem v-for="user in salesUsers" :key="user.id" :value="user.id.toString()">
                                             {{ user.name }}
                                         </SelectItem>
                                     </SelectContent>

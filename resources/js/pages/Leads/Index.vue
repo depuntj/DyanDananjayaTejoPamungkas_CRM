@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { MoreHorizontal, Plus, Search } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 
-const { leads } = defineProps<{
+const props = defineProps<{
     leads: {
         data: Array<{
             id: number;
@@ -38,10 +38,59 @@ const { leads } = defineProps<{
             per_page: number;
         };
     };
+    filters: {
+        search?: string;
+        status?: string;
+    };
 }>();
 
-const search = ref('');
-const filterStatus = ref('');
+const search = ref(props.filters.search || '');
+const status = ref(props.filters.status || '');
+
+// Debounce search to reduce unnecessary API calls
+const debouncedSearch = (() => {
+    let timeoutId: number;
+    return (fn: () => void) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(fn, 500) as unknown as number;
+    };
+})();
+
+// Apply filters
+const applyFilters = () => {
+    const params: Record<string, string> = {};
+
+    if (search.value) {
+        params.search = search.value;
+    }
+
+    if (status.value) {
+        params.status = status.value;
+    }
+
+    router.get(route('leads.index'), params, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+// Watch for changes in search and status
+watch(search, () => {
+    debouncedSearch(applyFilters);
+});
+
+watch(status, applyFilters);
+
+const statusOptions = [
+    { value: '', label: 'All Statuses' },
+    { value: 'new', label: 'New' },
+    { value: 'contacted', label: 'Contacted' },
+    { value: 'qualified', label: 'Qualified' },
+    { value: 'proposal', label: 'Proposal' },
+    { value: 'negotiation', label: 'Negotiation' },
+    { value: 'lost', label: 'Lost' },
+    { value: 'converted', label: 'Converted' },
+];
 
 const getStatusColor = (status: string) => {
     switch (status) {
@@ -68,46 +117,6 @@ const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
-
-const statusOptions = [
-    { value: '', label: 'All Statuses' },
-    { value: 'new', label: 'New' },
-    { value: 'contacted', label: 'Contacted' },
-    { value: 'qualified', label: 'Qualified' },
-    { value: 'proposal', label: 'Proposal' },
-    { value: 'negotiation', label: 'Negotiation' },
-    { value: 'lost', label: 'Lost' },
-    { value: 'converted', label: 'Converted' },
-];
-
-// Trigger filtering with a delay after typing
-let searchTimeout: ReturnType<typeof setTimeout>;
-watch(search, () => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        applyFilters();
-    }, 500);
-});
-
-// Apply filters immediately when status filter changes
-watch(filterStatus, () => {
-    applyFilters();
-});
-
-const applyFilters = () => {
-    const params: Record<string, string> = {};
-
-    if (search.value) {
-        params.search = search.value;
-    }
-
-    if (filterStatus.value) {
-        params.status = filterStatus.value;
-    }
-
-    window.location.href = route('leads.index', params);
-};
-console.log('Leads received:', leads);
 </script>
 
 <template>
@@ -134,9 +143,9 @@ console.log('Leads received:', leads);
                     </div>
                 </div>
                 <div class="flex w-full items-center gap-3 sm:w-auto">
-                    <Select v-model="filterStatus">
+                    <Select v-model="status">
                         <SelectTrigger class="w-full sm:w-[180px]">
-                            <SelectValue :placeholder="statusOptions[0].label" />
+                            <SelectValue placeholder="Select Status" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem v-for="option in statusOptions" :key="option.value" :value="option.value">
@@ -148,7 +157,7 @@ console.log('Leads received:', leads);
             </div>
 
             <!-- Leads Table -->
-            <div class="rounded-md border">
+            <div v-if="leads.data.length > 0" class="rounded-md border">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -203,11 +212,19 @@ console.log('Leads received:', leads);
                                 </DropdownMenu>
                             </TableCell>
                         </TableRow>
-                        <TableRow v-if="leads.data.length === 0">
-                            <TableCell colspan="6" class="py-6 text-center text-muted-foreground"> No leads found </TableCell>
-                        </TableRow>
                     </TableBody>
                 </Table>
+            </div>
+
+            <!-- No Leads Found Message -->
+            <div v-else class="flex h-64 flex-col items-center justify-center text-center text-muted-foreground">
+                <p class="mb-4">No leads found. Try adjusting your search or filters.</p>
+                <Link :href="route('leads.create')">
+                    <Button variant="outline">
+                        <Plus class="mr-2 h-4 w-4" />
+                        Add New Lead
+                    </Button>
+                </Link>
             </div>
 
             <!-- Pagination -->
@@ -216,7 +233,7 @@ console.log('Leads received:', leads);
                 <div class="flex items-center space-x-2">
                     <Link
                         v-if="leads.meta.current_page > 1"
-                        :href="route('leads.index', { page: leads.meta.current_page - 1 })"
+                        :href="route('leads.index', { page: leads.meta.current_page - 1, ...filters })"
                         class="rounded-md bg-muted px-3 py-1 hover:bg-muted-foreground/10"
                     >
                         Previous
@@ -233,7 +250,7 @@ console.log('Leads received:', leads);
                     </div>
                     <Link
                         v-if="leads.meta.current_page < leads.meta.last_page"
-                        :href="route('leads.index', { page: leads.meta.current_page + 1 })"
+                        :href="route('leads.index', { page: leads.meta.current_page + 1, ...filters })"
                         class="rounded-md bg-muted px-3 py-1 hover:bg-muted-foreground/10"
                     >
                         Next

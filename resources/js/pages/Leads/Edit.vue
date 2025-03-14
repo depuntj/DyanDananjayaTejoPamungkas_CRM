@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,10 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea/Index';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
-// Define types for form data
+// Define type for form data
 interface LeadForm {
     name: string;
     company_name: string | null;
@@ -20,7 +19,6 @@ interface LeadForm {
     notes: string | null;
     status: string;
     assigned_to: number | null;
-    [key: string]: any;
 }
 
 const props = defineProps<{
@@ -41,8 +39,8 @@ const props = defineProps<{
     }>;
 }>();
 
-// Initialize form with proper type
-const form = useForm<LeadForm>({
+// Initialize form with lead data
+const form = ref<LeadForm>({
     name: props.lead.name,
     company_name: props.lead.company_name,
     email: props.lead.email,
@@ -53,32 +51,7 @@ const form = useForm<LeadForm>({
     assigned_to: props.lead.assigned_to,
 });
 
-const notesValue = computed({
-    get: () => form.notes as string | undefined,
-    set: (value: string | undefined) => {
-        form.notes = value === undefined ? null : value;
-    },
-});
-
-const companyNameValue = computed({
-    get: () => form.company_name as string | undefined,
-    set: (value: string | undefined) => {
-        form.company_name = value === undefined ? null : value;
-    },
-});
-
-// Type-safe computed property for assigned_to
-const assignedToValue = computed<string>({
-    get: () => form.assigned_to?.toString() ?? '',
-    set: (value: string) => {
-        form.assigned_to = value ? Number(value) : null;
-    },
-});
-
-const submit = () => {
-    form.put(route('leads.update', props.lead.id));
-};
-
+// Status options with proper capitalization
 const statusOptions = [
     { value: 'new', label: 'New' },
     { value: 'contacted', label: 'Contacted' },
@@ -88,6 +61,28 @@ const statusOptions = [
     { value: 'lost', label: 'Lost' },
     { value: 'converted', label: 'Converted' },
 ];
+
+// Computed property to get selected status label
+const selectedStatusLabel = computed(() => statusOptions.find((option) => option.value === form.value.status)?.label || 'Select Status');
+
+// Computed property to get selected user name
+const selectedUserLabel = computed(() => {
+    if (form.value.assigned_to === null) return 'Unassigned';
+    const user = props.salesUsers.find((u) => u.id === form.value.assigned_to);
+    return user ? user.name : 'Unassigned';
+});
+
+const submit = () => {
+    router.put(route('leads.update', props.lead.id), form.value, {
+        preserveScroll: true,
+        onSuccess: () => {
+            // Optional: Add success handling
+        },
+        onError: (errors) => {
+            console.error('Form submission errors:', errors);
+        },
+    });
+};
 </script>
 
 <template>
@@ -109,38 +104,36 @@ const statusOptions = [
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                             <!-- Name -->
                             <div class="space-y-2">
-                                <Label for="name" required>Name</Label>
-                                <Input id="name" v-model="form.name" required />
-                                <InputError :message="form.errors.name" />
+                                <Label for="name">Name</Label>
+                                <Input id="name" v-model="form.name" required placeholder="Enter lead name" />
                             </div>
 
                             <!-- Company Name -->
                             <div class="space-y-2">
                                 <Label for="company_name">Company Name</Label>
-                                <Input id="company_name" v-model="companyNameValue" />
-                                <InputError :message="form.errors.company_name" />
+                                <Input id="company_name" v-model="form.company_name" placeholder="Enter company name" />
                             </div>
 
                             <!-- Email -->
                             <div class="space-y-2">
-                                <Label for="email" required>Email</Label>
-                                <Input id="email" type="email" v-model="form.email" required />
-                                <InputError :message="form.errors.email" />
+                                <Label for="email">Email</Label>
+                                <Input id="email" type="email" v-model="form.email" required placeholder="Enter email address" />
                             </div>
 
                             <!-- Phone -->
                             <div class="space-y-2">
-                                <Label for="phone" required>Phone</Label>
-                                <Input id="phone" v-model="form.phone" required />
-                                <InputError :message="form.errors.phone" />
+                                <Label for="phone">Phone</Label>
+                                <Input id="phone" v-model="form.phone" required placeholder="Enter phone number" />
                             </div>
 
                             <!-- Status -->
                             <div class="space-y-2">
-                                <Label for="status" required>Status</Label>
+                                <Label for="status">Status</Label>
                                 <Select v-model="form.status">
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select a status" />
+                                        <SelectValue>
+                                            {{ selectedStatusLabel }}
+                                        </SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-for="option in statusOptions" :key="option.value" :value="option.value">
@@ -148,15 +141,16 @@ const statusOptions = [
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <InputError :message="form.errors.status" />
                             </div>
 
-                            <!-- Assigned To -->
+                            <!-- Assign To -->
                             <div class="space-y-2">
                                 <Label for="assigned_to">Assign To</Label>
-                                <Select v-model="assignedToValue">
+                                <Select v-model="form.assigned_to" :model-value="form.assigned_to?.toString()">
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select a sales representative" />
+                                        <SelectValue>
+                                            {{ selectedUserLabel }}
+                                        </SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="">Unassigned</SelectItem>
@@ -165,29 +159,23 @@ const statusOptions = [
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <InputError :message="form.errors.assigned_to" />
                             </div>
                         </div>
 
                         <!-- Address -->
                         <div class="space-y-2">
-                            <Label for="address" required>Address</Label>
-                            <Textarea id="address" v-model="form.address" required rows="3" />
-                            <InputError :message="form.errors.address" />
+                            <Label for="address">Address</Label>
+                            <Textarea id="address" v-model="form.address" required placeholder="Enter address" rows="3" />
                         </div>
 
                         <!-- Notes -->
                         <div class="space-y-2">
                             <Label for="notes">Notes</Label>
-                            <Textarea id="notes" v-model="notesValue" rows="4" />
-                            <InputError :message="form.errors.notes" />
+                            <Textarea id="notes" v-model="form.notes" placeholder="Additional notes" rows="4" />
                         </div>
                     </CardContent>
-                    <CardFooter class="flex justify-between">
-                        <Button type="button" variant="outline" :disabled="form.processing" @click="router.visit(route('leads.index'))">
-                            Cancel
-                        </Button>
-                        <Button type="submit" :disabled="form.processing"> Update Lead </Button>
+                    <CardFooter>
+                        <Button type="submit">Update Lead</Button>
                     </CardFooter>
                 </Card>
             </form>

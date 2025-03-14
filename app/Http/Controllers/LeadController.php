@@ -37,8 +37,23 @@ class LeadController extends Controller
             });
         }
 
-        // Pagination with additional metadata
         $leads = $query->latest()->paginate(10);
+        $leadsData = collect($leads->items())->map(function ($lead) {
+            return [
+                'id' => $lead->id,
+                'name' => $lead->name,
+                'company_name' => $lead->company_name,
+                'email' => $lead->email,
+                'phone' => $lead->phone,
+                'status' => $lead->status,
+                'created_at' => $lead->created_at,
+                'assigned_to' => $lead->assigned_to,
+                'assignedUser' => $lead->assignedUser ? [
+                    'id' => $lead->assignedUser->id,
+                    'name' => $lead->assignedUser->name
+                ] : null
+            ];
+        })->all();
 
         return Inertia::render('Leads/Index', [
             'leads' => [
@@ -77,10 +92,16 @@ class LeadController extends Controller
             'phone' => 'required|string|max:20',
             'address' => 'required|string',
             'notes' => 'nullable|string',
-            'status' => 'nullable|in:new,contacted,qualified,proposal,negotiation,lost,converted',
-            'assigned_to' => 'nullable|exists:users,id',
+            'assigned_to' => 'nullable',
         ]);
 
+<<<<<<< HEAD
+=======
+        if ($validated['assigned_to'] === '') {
+            $validated['assigned_to'] = null;
+        }
+
+>>>>>>> 8bcbf0072bd733cd8971e734d61a0babcadb35fe
         $lead = Lead::create($validated);
 
         return redirect()->route('leads.index')
@@ -88,12 +109,19 @@ class LeadController extends Controller
     }
 
     public function show(Lead $lead)
-    {
-        $lead->load('assignedUser', 'projects');
-        return Inertia::render('Leads/Show', [
-            'lead' => $lead
-        ]);
-    }
+{
+    $lead->load(['assignedUser', 'projects']);
+
+    Log::info('Showing lead with data:', [
+        'lead_id' => $lead->id,
+        'assigned_to' => $lead->assigned_to,
+        'assigned_user' => $lead->assignedUser ? $lead->assignedUser->name : 'null'
+    ]);
+
+    return Inertia::render('Leads/Show', [
+        'lead' => $lead
+    ]);
+}
 
     public function edit(Lead $lead)
 {
@@ -105,6 +133,7 @@ class LeadController extends Controller
 }
 
     public function update(Request $request, Lead $lead)
+<<<<<<< HEAD
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -121,7 +150,47 @@ class LeadController extends Controller
 
         return redirect()->route('leads.index')
             ->with('success', 'Lead updated successfully');
+=======
+{
+    Log::info('Lead update raw data:', [
+        'assigned_to_raw' => $request->input('assigned_to'),
+        'all_data' => $request->all()
+    ]);
+
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'company_name' => 'nullable|string|max:255',
+        'email' => 'required|email|unique:leads,email,' . $lead->id,
+        'phone' => 'required|string|max:20',
+        'address' => 'required|string',
+        'notes' => 'nullable|string',
+        'status' => 'required|in:new,contacted,qualified,proposal,negotiation,lost,converted',
+        'assigned_to' => 'nullable',
+    ]);
+
+    if ($request->has('assigned_to')) {
+        if ($request->input('assigned_to') === '' || $request->input('assigned_to') === null) {
+            $validated['assigned_to'] = null;
+        } else {
+            $validated['assigned_to'] = (int) $request->input('assigned_to');
+        }
+>>>>>>> 8bcbf0072bd733cd8971e734d61a0babcadb35fe
     }
+
+    Log::info('About to update lead with data:', [
+        'assigned_to' => $validated['assigned_to']
+    ]);
+
+    $lead->update($validated);
+
+    $lead->refresh();
+    Log::info('After update, lead data is:', [
+        'assigned_to' => $lead->assigned_to
+    ]);
+
+    return redirect()->route('leads.index')
+        ->with('success', 'Lead updated successfully');
+}
 
     public function destroy(Lead $lead)
     {

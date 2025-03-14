@@ -40,7 +40,7 @@ const props = defineProps<{
 }>();
 
 // Initialize form with lead data
-const form = ref<LeadForm>({
+const form = ref({
     name: props.lead.name,
     company_name: props.lead.company_name,
     email: props.lead.email,
@@ -48,7 +48,7 @@ const form = ref<LeadForm>({
     address: props.lead.address,
     notes: props.lead.notes,
     status: props.lead.status,
-    assigned_to: props.lead.assigned_to,
+    assigned_to: props.lead.assigned_to === null ? '' : props.lead.assigned_to,
 });
 
 // Status options with proper capitalization
@@ -73,6 +73,7 @@ const selectedUserLabel = computed(() => {
 });
 
 const submit = () => {
+<<<<<<< HEAD
     router.put(route('leads.update', props.lead.id), form.value, {
         preserveScroll: true,
         onSuccess: () => {
@@ -82,6 +83,22 @@ const submit = () => {
             console.error('Form submission errors:', errors);
         },
     });
+=======
+    const formData = {
+        name: form.value.name,
+        company_name: form.value.company_name,
+        email: form.value.email,
+        phone: form.value.phone,
+        address: form.value.address,
+        notes: form.value.notes,
+        status: form.value.status,
+        assigned_to: form.value.assigned_to === '' ? null : Number(form.value.assigned_to),
+    };
+
+    console.log('Submitting with assigned_to:', formData.assigned_to);
+
+    router.put(route('leads.update', props.lead.id), formData);
+>>>>>>> 8bcbf0072bd733cd8971e734d61a0babcadb35fe
 };
 </script>
 
@@ -146,6 +163,7 @@ const submit = () => {
                             <!-- Assign To -->
                             <div class="space-y-2">
                                 <Label for="assigned_to">Assign To</Label>
+<<<<<<< HEAD
                                 <Select v-model="form.assigned_to" :model-value="form.assigned_to?.toString()">
                                     <SelectTrigger>
                                         <SelectValue>
@@ -159,6 +177,18 @@ const submit = () => {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+=======
+                                <select
+                                    id="assigned_to"
+                                    v-model="form.assigned_to"
+                                    class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                >
+                                    <option value="">Unassigned</option>
+                                    <option v-for="user in salesUsers" :key="user.id" :value="user.id">
+                                        {{ user.name }}
+                                    </option>
+                                </select>
+>>>>>>> 8bcbf0072bd733cd8971e734d61a0babcadb35fe
                             </div>
                         </div>
 

@@ -22,7 +22,7 @@ class Lead extends Model
         'assigned_to',
     ];
 
-    public function assignedUser(): BelongsTo
+    public function assignedUser()
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }

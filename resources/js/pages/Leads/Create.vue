@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea/Index';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
@@ -24,14 +23,12 @@ const form = useForm({
     phone: '',
     address: '',
     notes: '',
-    assigned_to: null as number | null,
+    assigned_to: '',
 });
 
 const assignedToRef = ref<string | null>(null);
 
 const submit = () => {
-    // Convert the selected value to a number or null
-    form.assigned_to = assignedToRef.value ? Number(assignedToRef.value) : null;
     form.post(route('leads.store'));
 };
 </script>
@@ -84,17 +81,16 @@ const submit = () => {
                             <!-- Assigned To -->
                             <div class="space-y-2">
                                 <Label for="assigned_to">Assign To</Label>
-                                <Select v-model="assignedToRef">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a sales representative" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="">Unassigned</SelectItem>
-                                        <SelectItem v-for="user in salesUsers" :key="user.id" :value="user.id.toString()">
-                                            {{ user.name }}
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <select
+                                    id="assigned_to"
+                                    v-model="form.assigned_to"
+                                    class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                >
+                                    <option value="">Unassigned</option>
+                                    <option v-for="user in salesUsers" :key="user.id" :value="user.id">
+                                        {{ user.name }}
+                                    </option>
+                                </select>
                                 <InputError :message="form.errors.assigned_to" />
                             </div>
                         </div>

@@ -25,14 +25,14 @@ Route::middleware(['auth'])->group(function () {
 
     // Leads Routes
         Route::prefix('leads')->name('leads.')->group(function () {
-            Route::get('/', [LeadController::class, 'index'])->name('index');
-            Route::get('/create', [LeadController::class, 'create'])->name('create');
-            Route::post('/', [LeadController::class, 'store'])->name('store');
-            Route::get('/{lead}', [LeadController::class, 'show'])->name('show');
-            Route::get('/{lead}/edit', [LeadController::class, 'edit'])->name('edit');
-            Route::put('/{lead}', [LeadController::class, 'update'])->name('update');
-            Route::delete('/{lead}', [LeadController::class, 'destroy'])->name('destroy');
-        });
+        Route::get('/', [LeadController::class, 'index'])->name('index');
+        Route::get('/create', [LeadController::class, 'create'])->name('create');
+        Route::post('/', [LeadController::class, 'store'])->name('store');
+        Route::get('/{lead}', [LeadController::class, 'show'])->name('show');
+        Route::get('/{lead}/edit', [LeadController::class, 'edit'])->name('edit');
+        Route::put('/{lead}', [LeadController::class, 'update'])->name('update');
+        Route::delete('/{lead}', [LeadController::class, 'destroy'])->name('destroy');
+    });
 
     // Admin and Manager Protected Routes
     Route::middleware(['role:admin|manager'])->group(function () {
@@ -61,18 +61,23 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/{project}', [ProjectController::class, 'update'])->name('update');
         Route::delete('/{project}', [ProjectController::class, 'destroy'])->name('destroy');
 
-        // Manager/Admin Project Actions
-        Route::middleware(['role:admin|manager'])->group(function () {
+        // Manager-only Project Actions
+        Route::middleware(['role:manager'])->group(function () {
+            Route::post('/{project}/approve', [ProjectController::class, 'approve'])
+                ->name('approve');
+            Route::post('/{project}/reject', [ProjectController::class, 'reject'])
+                ->name('reject');
+        });
+        Route::middleware(['role:admin'])->group(function () {
             Route::post('/{project}/approve', [ProjectController::class, 'approve'])
                 ->name('approve');
             Route::post('/{project}/reject', [ProjectController::class, 'reject'])
                 ->name('reject');
         });
 
-
         // Project Conversion (accessible to authenticated users)
         Route::post('/{project}/convert', [ProjectController::class, 'convert'])
-        ->name('convert');
+            ->name('convert');
     });
 
     // Customers Routes

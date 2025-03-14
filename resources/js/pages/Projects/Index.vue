@@ -256,7 +256,7 @@ const getAssignedUserName = (project: Project) => {
                             <TableCell class="text-right">
                                 <div class="flex items-center justify-end gap-2">
                                     <Button
-                                        v-if="project.status === 'pending' && isManager"
+                                        v-if="project.status === 'pending' && (user.value?.role === 'manager' || user.value?.role === 'admin')"
                                         variant="outline"
                                         size="sm"
                                         class="text-green-600"
@@ -266,7 +266,7 @@ const getAssignedUserName = (project: Project) => {
                                         Approve
                                     </Button>
                                     <Button
-                                        v-if="project.status === 'pending' && isManager"
+                                        v-if="project.status === 'pending' && (user.value?.role === 'manager' || user.value?.role === 'admin')"
                                         variant="outline"
                                         size="sm"
                                         class="text-red-600"

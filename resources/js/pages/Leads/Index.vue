@@ -177,7 +177,13 @@ const formatDate = (dateString: string) => {
                                     {{ lead.status.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase()) }}
                                 </span>
                             </TableCell>
-                            <TableCell>{{ lead.assignedUser ? lead.assignedUser.name : 'Unassigned' }}</TableCell>
+                            <TableCell>
+                                <template v-if="lead.assignedUser">
+                                    {{ lead.assignedUser.name }}
+                                </template>
+                                <template v-else-if="lead.assigned_to"> Sales User {{ lead.assigned_to }} </template>
+                                <template v-else> Unassigned </template>
+                            </TableCell>
                             <TableCell>{{ formatDate(lead.created_at) }}</TableCell>
                             <TableCell>
                                 <DropdownMenu>

@@ -35,6 +35,9 @@ class ProjectController extends Controller
             ->paginate($request->per_page ?? 10)
             ->withQueryString();
 
+        $salesUsers = User::where('role', 'sales')->get();
+
+
         return Inertia::render('Projects/Index', [
             'projects' => [
                 'data' => $projects->items(),
@@ -54,6 +57,7 @@ class ProjectController extends Controller
                 'sort_field' => $sortField,
                 'sort_direction' => $sortDirection,
             ],
+            'salesUsers' => $salesUsers,
         ]);
     }
 

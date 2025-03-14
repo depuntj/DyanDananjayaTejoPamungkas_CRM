@@ -2,18 +2,18 @@
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { CheckCircle, MoreHorizontal, Plus, Search, XCircle } from 'lucide-vue-next';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 interface Project {
     id: number;
     name: string;
     status: string;
     created_at: string;
+    assigned_to: number | null;
     lead: {
         id: number;
         name: string;
@@ -47,10 +47,24 @@ interface Pagination {
 
 const props = defineProps<{
     projects: Pagination;
+    filters?: {
+        search?: string;
+        status?: string;
+    };
+    salesUsers?: Array<{
+        id: number;
+        name: string;
+    }>;
 }>();
 
-const search = ref('');
-const filterStatus = ref('');
+// Get the current user and their role
+const page = usePage();
+const user = computed(() => page.props.auth.user);
+const isManager = computed(() => user.value?.role === 'manager' || user.value?.role === 'admin');
+
+// Initialize with values from the URL or props
+const search = ref(props.filters?.search || '');
+const filterStatus = ref(props.filters?.status || '');
 
 // Trigger filtering with a delay after typing
 let searchTimeout: ReturnType<typeof setTimeout>;
@@ -61,11 +75,7 @@ watch(search, () => {
     }, 500);
 });
 
-// Apply filters immediately when status filter changes
-watch(filterStatus, () => {
-    applyFilters();
-});
-
+// Apply filters function
 const applyFilters = () => {
     const params: Record<string, string> = {};
 
@@ -77,7 +87,10 @@ const applyFilters = () => {
         params.status = filterStatus.value;
     }
 
-    router.get(route('projects.index'), params);
+    router.get(route('projects.index'), params, {
+        preserveState: true,
+        replace: true,
+    });
 };
 
 const getStatusColor = (status: string) => {
@@ -103,11 +116,13 @@ const formatDate = (dateString: string) => {
 };
 
 const approveProject = (projectId: number) => {
-    router.post(route('projects.approve', projectId));
+    if (isManager.value) {
+        router.post(route('projects.approve', projectId));
+    }
 };
 
 const rejectProject = (projectId: number) => {
-    if (confirm('Are you sure you want to reject this project?')) {
+    if (isManager.value && confirm('Are you sure you want to reject this project?')) {
         router.post(route('projects.reject', projectId));
     }
 };
@@ -124,6 +139,25 @@ const statusOptions = [
     { value: 'in_progress', label: 'In Progress' },
     { value: 'completed', label: 'Completed' },
 ];
+
+// Helper function to resolve user name from ID
+const getUserNameById = (userId: number) => {
+    if (props.salesUsers) {
+        const user = props.salesUsers.find((user) => user.id === userId);
+        return user ? user.name : `User #${userId}`;
+    }
+    return `User #${userId}`;
+};
+
+// More robust way to get assigned user name
+const getAssignedUserName = (project: Project) => {
+    if (project.assignedUser) {
+        return project.assignedUser.name;
+    } else if (project.assigned_to) {
+        return getUserNameById(project.assigned_to);
+    }
+    return 'Unassigned';
+};
 </script>
 
 <template>
@@ -150,16 +184,33 @@ const statusOptions = [
                     </div>
                 </div>
                 <div class="flex w-full items-center gap-3 sm:w-auto">
-                    <Select v-model="filterStatus">
-                        <SelectTrigger class="w-full sm:w-[180px]">
-                            <SelectValue :placeholder="statusOptions[0].label" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem v-for="option in statusOptions" :key="option.value" :value="option.value">
+                    <div class="relative">
+                        <select
+                            v-model="filterStatus"
+                            @change="applyFilters()"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm sm:w-[180px]"
+                        >
+                            <option v-for="option in statusOptions" :key="option.value" :value="option.value">
                                 {{ option.label }}
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
+                            </option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                class="h-4 w-4 opacity-50"
+                            >
+                                <path d="m6 9 6 6 6-6"></path>
+                            </svg>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -190,7 +241,9 @@ const statusOptions = [
                                     {{ project.lead.name }}
                                 </Link>
                             </TableCell>
-                            <TableCell>{{ project.assignedUser ? project.assignedUser.name : 'Unassigned' }}</TableCell>
+                            <TableCell>
+                                {{ getAssignedUserName(project) }}
+                            </TableCell>
                             <TableCell>
                                 <span
                                     class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
@@ -203,7 +256,7 @@ const statusOptions = [
                             <TableCell class="text-right">
                                 <div class="flex items-center justify-end gap-2">
                                     <Button
-                                        v-if="project.status === 'pending'"
+                                        v-if="project.status === 'pending' && isManager"
                                         variant="outline"
                                         size="sm"
                                         class="text-green-600"
@@ -213,7 +266,7 @@ const statusOptions = [
                                         Approve
                                     </Button>
                                     <Button
-                                        v-if="project.status === 'pending'"
+                                        v-if="project.status === 'pending' && isManager"
                                         variant="outline"
                                         size="sm"
                                         class="text-red-600"
@@ -259,7 +312,7 @@ const statusOptions = [
                 <div class="flex items-center space-x-2">
                     <Link
                         v-if="projects.meta.current_page > 1"
-                        :href="route('projects.index', { page: projects.meta.current_page - 1 })"
+                        :href="route('projects.index', { page: projects.meta.current_page - 1, status: filterStatus, search: search })"
                         class="rounded-md bg-muted px-3 py-1 hover:bg-muted-foreground/10"
                     >
                         Previous
@@ -267,7 +320,7 @@ const statusOptions = [
                     <div v-for="(link, i) in projects.links.slice(1, -1)" :key="i">
                         <Link
                             v-if="link.url"
-                            :href="link.url"
+                            :href="link.url + (filterStatus ? '&status=' + filterStatus : '') + (search ? '&search=' + search : '')"
                             class="rounded-md px-3 py-1"
                             :class="link.active ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted-foreground/10'"
                         >
@@ -276,7 +329,7 @@ const statusOptions = [
                     </div>
                     <Link
                         v-if="projects.meta.current_page < projects.meta.last_page"
-                        :href="route('projects.index', { page: projects.meta.current_page + 1 })"
+                        :href="route('projects.index', { page: projects.meta.current_page + 1, status: filterStatus, search: search })"
                         class="rounded-md bg-muted px-3 py-1 hover:bg-muted-foreground/10"
                     >
                         Next

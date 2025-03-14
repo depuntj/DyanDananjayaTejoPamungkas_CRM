@@ -34,14 +34,15 @@ class CustomerController extends Controller
                     'name' => $customer->name,
                     'company_name' => $customer->company_name,
                     'email' => $customer->email,
+                    'phone' => $customer->phone,
                     'customer_id' => $customer->customer_id,
                     'is_active' => $customer->is_active,
                     'created_at' => $customer->created_at,
-                    'services_count' => $customer->services()->where('status', 'active')->count(),
+                    'services' => $customer->services,
                 ];
             });
 
-        return Inertia::render('Customers/Index', [
+        return Inertia::render('Customer/Index', [
             'customers' => [
                 'data' => $customers,
                 'meta' => [
@@ -66,7 +67,7 @@ class CustomerController extends Controller
             'services.product'
         ]);
 
-        return Inertia::render('Customers/Show', [
+        return Inertia::render('Customer/Show', [
             'customer' => $customer,
         ]);
     }
@@ -75,7 +76,7 @@ class CustomerController extends Controller
     {
         $products = Product::where('is_active', true)->get();
 
-        return Inertia::render('Customers/Edit', [
+        return Inertia::render('Customer/Edit', [
             'customer' => $customer,
             'products' => $products,
         ]);

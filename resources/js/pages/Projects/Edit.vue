@@ -8,54 +8,78 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
+
+interface Lead {
+    id: number;
+    name: string;
+    company_name: string | null;
+}
+
+interface SalesUser {
+    id: number;
+    name: string;
+}
+
+interface Product {
+    id: number;
+    name: string;
+    price: number;
+    speed: string;
+}
+
+interface ProjectProduct {
+    id: number;
+    name: string;
+    price: number;
+    pivot: {
+        price: number;
+        quantity: number;
+    };
+}
+
+interface Project {
+    id: number;
+    name: string;
+    lead_id: number;
+    status: string;
+    assigned_to: number | null;
+    notes: string | null;
+    products: ProjectProduct[];
+}
+
+interface FormProduct {
+    id: string;
+    quantity: number;
+    price: string;
+}
+
+interface ProjectForm {
+    name: string;
+    lead_id: string;
+    assigned_to: string;
+    notes: string;
+    products: FormProduct[];
+}
 
 const props = defineProps<{
-    project: {
-        id: number;
-        name: string;
-        lead_id: number;
-        status: string;
-        assigned_to: number | null;
-        notes: string | null;
-        products: Array<{
-            id: number;
-            name: string;
-            price: number;
-            pivot: {
-                price: number;
-                quantity: number;
-            };
-        }>;
-    };
-    leads: Array<{
-        id: number;
-        name: string;
-        company_name: string | null;
-    }>;
-    salesUsers: Array<{
-        id: number;
-        name: string;
-    }>;
-    products: Array<{
-        id: number;
-        name: string;
-        price: number;
-        speed: string;
-    }>;
+    project: Project;
+    leads: Lead[];
+    salesUsers: SalesUser[];
+    products: Product[];
 }>();
 
 // Transform project data for the form
-const formattedProducts = props.project.products.map(product => ({
+const formattedProducts = props.project.products.map((product) => ({
     id: product.id.toString(),
     quantity: product.pivot.quantity,
-    price: product.pivot.price.toString()
+    price: product.pivot.price.toString(),
 }));
 
-const form = useForm({
+const form = useForm<ProjectForm>({
     name: props.project.name,
     lead_id: props.project.lead_id.toString(),
-    assigned_to: props.project.assigned_to ? props.project.assigned_to.toString() : '',
+    assigned_to: props.project.assigned_to?.toString() || '',
     notes: props.project.notes || '',
     products: formattedProducts,
 });
@@ -146,7 +170,7 @@ const submit = () => {
                                         <SelectValue placeholder="Select a sales representative" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem :value="">Unassigned</SelectItem>
+                                        <SelectItem value="">Unassigned</SelectItem>
                                         <SelectItem v-for="user in salesUsers" :key="user.id" :value="user.id.toString()">
                                             {{ user.name }}
                                         </SelectItem>
@@ -165,7 +189,7 @@ const submit = () => {
                     </Card>
 
                     <!-- Project Summary Card -->
-                    <Card class="lg:row-start-1 lg:col-start-3">
+                    <Card class="lg:col-start-3 lg:row-start-1">
                         <CardHeader>
                             <CardTitle>Project Summary</CardTitle>
                         </CardHeader>
@@ -185,9 +209,10 @@ const submit = () => {
                         </CardContent>
                         <div class="px-6 pb-4">
                             <p class="text-sm text-muted-foreground">
-                                {{ project.status === 'pending'
-                                    ? 'This project needs to be approved by a manager before it can be converted to a customer.'
-                                    : 'This project is ' + project.status.replace('_', ' ') + '.'
+                                {{
+                                    project.status === 'pending'
+                                        ? 'This project needs to be approved by a manager before it can be converted to a customer.'
+                                        : 'This project is ' + project.status.replace('_', ' ') + '.'
                                 }}
                             </p>
                         </div>
@@ -215,11 +240,7 @@ const submit = () => {
                                         <!-- Product Selection -->
                                         <div class="space-y-2">
                                             <Label :for="`product-${index}`" required>Product</Label>
-                                            <Select
-                                                v-model="form.products[index].id"
-                                                required
-                                                @update:modelValue="setProductPrice(index, $event)"
-                                            >
+                                            <Select v-model="form.products[index].id" required @update:modelValue="setProductPrice(index, $event)">
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select a product" />
                                                 </SelectTrigger>

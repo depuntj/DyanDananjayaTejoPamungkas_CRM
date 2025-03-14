@@ -9,40 +9,44 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { CheckCircle, MoreHorizontal, Plus, Search, XCircle } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 
-const props = defineProps<{
-    projects: {
-        data: Array<{
-            id: number;
-            name: string;
-            status: string;
-            created_at: string;
-            lead: {
-                id: number;
-                name: string;
-            };
-            assignedUser: {
-                id: number;
-                name: string;
-            } | null;
-            approvedBy: {
-                id: number;
-                name: string;
-            } | null;
-        }>;
-        links: Array<{
-            url: string | null;
-            label: string;
-            active: boolean;
-        }>;
-        meta: {
-            current_page: number;
-            last_page: number;
-            from: number;
-            to: number;
-            total: number;
-            per_page: number;
-        };
+interface Project {
+    id: number;
+    name: string;
+    status: string;
+    created_at: string;
+    lead: {
+        id: number;
+        name: string;
     };
+    assignedUser: {
+        id: number;
+        name: string;
+    } | null;
+    approvedBy: {
+        id: number;
+        name: string;
+    } | null;
+}
+
+interface Pagination {
+    data: Project[];
+    links: Array<{
+        url: string | null;
+        label: string;
+        active: boolean;
+    }>;
+    meta: {
+        current_page: number;
+        last_page: number;
+        from: number;
+        to: number;
+        total: number;
+        per_page: number;
+    };
+}
+
+const props = defineProps<{
+    projects: Pagination;
 }>();
 
 const search = ref('');
@@ -73,7 +77,7 @@ const applyFilters = () => {
         params.status = filterStatus.value;
     }
 
-    window.location.href = route('projects.index', params);
+    router.get(route('projects.index'), params);
 };
 
 const getStatusColor = (status: string) => {
@@ -106,6 +110,10 @@ const rejectProject = (projectId: number) => {
     if (confirm('Are you sure you want to reject this project?')) {
         router.post(route('projects.reject', projectId));
     }
+};
+
+const convertToCustomer = (projectId: number) => {
+    router.post(route('projects.convert', projectId));
 };
 
 const statusOptions = [
@@ -172,19 +180,13 @@ const statusOptions = [
                         <TableRow v-for="project in projects.data" :key="project.id">
                             <TableCell>
                                 <div class="font-medium">
-                                    <Link
-                                        :href="route('projects.show', project.id)"
-                                        class="text-blue-600 hover:underline dark:text-blue-400"
-                                    >
+                                    <Link :href="route('projects.show', project.id)" class="text-blue-600 hover:underline dark:text-blue-400">
                                         {{ project.name }}
                                     </Link>
                                 </div>
                             </TableCell>
                             <TableCell>
-                                <Link
-                                    :href="route('leads.show', project.lead.id)"
-                                    class="text-blue-600 hover:underline dark:text-blue-400"
-                                >
+                                <Link :href="route('leads.show', project.lead.id)" class="text-blue-600 hover:underline dark:text-blue-400">
                                     {{ project.lead.name }}
                                 </Link>
                             </TableCell>
@@ -234,10 +236,7 @@ const statusOptions = [
                                             <DropdownMenuItem v-if="project.status !== 'approved' && project.status !== 'completed'" asChild>
                                                 <Link :href="route('projects.edit', project.id)">Edit</Link>
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                v-if="project.status === 'approved'"
-                                                @click="router.post(route('projects.convert', project.id))"
-                                            >
+                                            <DropdownMenuItem v-if="project.status === 'approved'" @click="convertToCustomer(project.id)">
                                                 Convert to Customer
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>

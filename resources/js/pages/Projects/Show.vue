@@ -9,47 +9,46 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { CheckCircle, Edit, ExternalLink, Trash2, UserCheck, XCircle } from 'lucide-vue-next';
 import { ref } from 'vue';
 
-const props = defineProps<{
-    project: {
+interface ProjectProduct {
+    id: number;
+    name: string;
+    description: string;
+    price: number;
+    speed: string;
+    pivot: {
+        quantity: number;
+        price: number;
+    };
+}
+
+interface Project {
+    id: number;
+    name: string;
+    status: string;
+    notes: string | null;
+    created_at: string;
+    approved_at: string | null;
+    lead: {
         id: number;
         name: string;
-        status: string;
-        notes: string | null;
-        created_at: string;
-        approved_at: string | null;
-        lead: {
-            id: number;
-            name: string;
-            company_name: string | null;
-            email: string;
-            phone: string;
-        };
-        assignedUser: {
-            id: number;
-            name: string;
-        } | null;
-        approvedBy: {
-            id: number;
-            name: string;
-        } | null;
-        products: Array<{
-            id: number;
-            name: string;
-            description: string;
-            price: number;
-            pivot: {
-                quantity: number;
-                price: number;
-            };
-        }>;
+        company_name: string | null;
+        email: string;
+        phone: string;
     };
-}>();
+    assignedUser: {
+        id: number;
+        name: string;
+    } | null;
+    approvedBy: {
+        id: number;
+        name: string;
+    } | null;
+    products: ProjectProduct[];
+}
 
-const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-};
+const props = defineProps<{
+    project: Project;
+}>();
 
 const deleteConfirmOpen = ref(false);
 
@@ -77,6 +76,12 @@ const convertToCustomer = () => {
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
+};
+
+const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
 const getStatusColor = (status: string) => {
@@ -130,8 +135,8 @@ const totalProjectValue = props.project.products.reduce((total, product) => {
                             <DialogHeader>
                                 <DialogTitle>Are you sure?</DialogTitle>
                                 <DialogDescription>
-                                    This action cannot be undone. This will permanently delete the project "{{ project.name }}" and remove all associated
-                                    data.
+                                    This action cannot be undone. This will permanently delete the project "{{ project.name }}" and remove all
+                                    associated data.
                                 </DialogDescription>
                             </DialogHeader>
                             <DialogFooter class="mt-4">
@@ -160,12 +165,7 @@ const totalProjectValue = props.project.products.reduce((total, product) => {
                         <XCircle class="mr-2 h-4 w-4" />
                         Reject
                     </Button>
-                    <Button
-                        v-if="project.status === 'approved'"
-                        size="sm"
-                        class="flex items-center"
-                        @click="convertToCustomer"
-                    >
+                    <Button v-if="project.status === 'approved'" size="sm" class="flex items-center" @click="convertToCustomer">
                         <UserCheck class="mr-2 h-4 w-4" />
                         Convert to Customer
                     </Button>
@@ -256,7 +256,10 @@ const totalProjectValue = props.project.products.reduce((total, product) => {
                                 </p>
                             </div>
                             <div class="pt-2">
-                                <Link :href="route('leads.show', project.lead.id)" class="inline-flex items-center text-sm text-blue-600 hover:underline dark:text-blue-400">
+                                <Link
+                                    :href="route('leads.show', project.lead.id)"
+                                    class="inline-flex items-center text-sm text-blue-600 hover:underline dark:text-blue-400"
+                                >
                                     <ExternalLink class="mr-1 h-3 w-3" />
                                     View Lead Details
                                 </Link>
@@ -287,7 +290,7 @@ const totalProjectValue = props.project.products.reduce((total, product) => {
                             <TableRow v-for="product in project.products" :key="product.id">
                                 <TableCell>
                                     <div class="font-medium">{{ product.name }}</div>
-                                    <div class="text-xs text-muted-foreground truncate max-w-xs">{{ product.description }}</div>
+                                    <div class="max-w-xs truncate text-xs text-muted-foreground">{{ product.description }}</div>
                                 </TableCell>
                                 <TableCell>{{ product.speed }}</TableCell>
                                 <TableCell class="text-right">{{ formatCurrency(product.pivot.price) }}</TableCell>

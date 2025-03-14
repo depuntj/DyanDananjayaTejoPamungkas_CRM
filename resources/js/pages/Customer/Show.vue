@@ -211,6 +211,14 @@ const totalMonthlyRevenue = props.customer.services
                                     <label for="end_date" class="text-sm font-medium">End Date (Optional)</label>
                                     <input id="end_date" type="date" v-model="serviceForm.end_date" class="rounded-md border px-3 py-2" />
                                 </div>
+                                <div class="grid gap-2">
+                                    <label for="status" class="text-sm font-medium">Status</label>
+                                    <select id="status" v-model="serviceForm.status" required class="rounded-md border px-3 py-2">
+                                        <option value="active">Active</option>
+                                        <option value="suspended">Suspended</option>
+                                        <option value="terminated">Terminated</option>
+                                    </select>
+                                </div>
                                 <DialogFooter class="mt-4">
                                     <Button type="button" variant="outline" @click="addServiceDialogOpen = false">Cancel</Button>
                                     <Button type="submit">Add Service</Button>

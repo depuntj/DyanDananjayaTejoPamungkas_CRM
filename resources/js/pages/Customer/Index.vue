@@ -8,6 +8,14 @@ import { Head, Link } from '@inertiajs/vue3';
 import { MoreHorizontal, Search } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 
+interface Service {
+    id: number;
+    name: string;
+    pivot: {
+        status: string;
+    };
+}
+
 interface Customer {
     id: number;
     name: string;
@@ -17,13 +25,7 @@ interface Customer {
     customer_id: string;
     is_active: boolean;
     created_at: string;
-    services: Array<{
-        id: number;
-        name: string;
-        pivot: {
-            status: string;
-        };
-    }>;
+    services: Service[];
 }
 
 interface Pagination {
@@ -45,10 +47,14 @@ interface Pagination {
 
 const props = defineProps<{
     customers: Pagination;
+    filters?: {
+        search?: string;
+        status?: string;
+    };
 }>();
 
-const search = ref('');
-const filterStatus = ref('');
+const search = ref(props.filters?.search || '');
+const filterStatus = ref(props.filters?.status || '');
 
 // Trigger filtering with a delay after typing
 let searchTimeout: ReturnType<typeof setTimeout>;

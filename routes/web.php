@@ -24,7 +24,7 @@ Route::middleware(['auth'])->group(function () {
         ->name('dashboard');
 
     // Leads Routes
-        Route::prefix('leads')->name('leads.')->group(function () {
+    Route::prefix('leads')->name('leads.')->group(function () {
         Route::get('/', [LeadController::class, 'index'])->name('index');
         Route::get('/create', [LeadController::class, 'create'])->name('create');
         Route::post('/', [LeadController::class, 'store'])->name('store');
@@ -34,6 +34,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/{lead}', [LeadController::class, 'destroy'])->name('destroy');
     });
 
+    // Admin and Manager Protected Routes
     // Admin and Manager Protected Routes
     Route::middleware(['role:admin|manager'])->group(function () {
         // Products Routes
@@ -46,11 +47,14 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/{product}', [ProductController::class, 'update'])->name('update');
             Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
         });
-
-        // User Management Routes
-        Route::resource('users', UserController::class);
     });
 
+    // Admin-Only Routes
+    Route::middleware(['role:admin'])->group(function () {
+        // User Management Routes
+        Route::resource('users', UserController::class);
+        Route::put('users/{user}/password', [UserController::class, 'updatePassword'])->name('users.password.update');
+    });
     // Projects Routes
     Route::prefix('projects')->name('projects.')->group(function () {
         Route::get('/', [ProjectController::class, 'index'])->name('index');

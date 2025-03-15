@@ -41,7 +41,7 @@ const mainNavItems: NavItem[] = [
 
 // Only show admin and manager items to those roles
 const adminNavItems: NavItem[] =
-    userRole === 'admin' || userRole === 'manager'
+    userRole === 'admin'
         ? [
               {
                   title: 'Users',
@@ -54,7 +54,7 @@ const adminNavItems: NavItem[] =
 const footerNavItems: NavItem[] = [
     {
         title: 'Github Repo',
-        href: 'https://github.com/laravel/vue-starter-kit',
+        href: 'https://github.com/depuntj/DyanDananjayaTejoPamungkas_CRM',
         icon: Folder,
     },
     {

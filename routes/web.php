@@ -49,9 +49,7 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
-    // Admin-Only Routes
     Route::middleware(['role:admin'])->group(function () {
-        // User Management Routes
         Route::resource('users', UserController::class);
         Route::put('users/{user}/password', [UserController::class, 'updatePassword'])->name('users.password.update');
     });

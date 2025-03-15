@@ -149,7 +149,6 @@ const getUserNameById = (userId: number) => {
     return `User #${userId}`;
 };
 
-// More robust way to get assigned user name
 const getAssignedUserName = (project: Project) => {
     if (project.assignedUser) {
         return project.assignedUser.name;
@@ -282,17 +281,14 @@ const canInteractWithProject = (project: Project) => {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <!-- View project is always available -->
                                             <DropdownMenuItem asChild>
                                                 <Link :href="route('projects.show', project.id)">View</Link>
                                             </DropdownMenuItem>
 
-                                            <!-- Edit project for pending projects or for assigned/manager/admin -->
                                             <DropdownMenuItem v-if="project.status === 'pending' || canInteractWithProject(project)" asChild>
                                                 <Link :href="route('projects.edit', project.id)">Edit</Link>
                                             </DropdownMenuItem>
 
-                                            <!-- Convert to customer for approved projects -->
                                             <DropdownMenuItem
                                                 v-if="project.status === 'approved' && (isManagerOrAdmin || project.assigned_to === user?.id)"
                                                 @click="convertToCustomer(project.id)"

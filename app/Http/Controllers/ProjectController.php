@@ -247,12 +247,10 @@ class ProjectController extends Controller
 
     public function approve(Project $project)
     {
-        // Only managers and admins can approve
         if (!in_array(Auth::user()->role, ['manager', 'admin'])) {
             return back()->with('error', 'Only managers and admins can approve projects.');
         }
 
-        // Only pending projects can be approved
         if ($project->status !== 'pending') {
             return back()->with('error', 'Only pending projects can be approved.');
         }
@@ -263,7 +261,6 @@ class ProjectController extends Controller
             'approved_at' => now(),
         ]);
 
-        // Update lead status to negotiation stage
         $project->lead->update([
             'status' => 'negotiation'
         ]);
@@ -297,12 +294,10 @@ class ProjectController extends Controller
 
     public function convert(Project $project)
     {
-        // Only approved projects can be converted
         if ($project->status !== 'approved') {
             return back()->with('error', 'Only approved projects can be converted to customers.');
         }
 
-        // Restrict conversion to managers, admins, and assigned sales
         if (!in_array(Auth::user()->role, ['manager', 'admin']) && $project->assigned_to !== Auth::id()) {
             return back()->with('error', 'You are not authorized to convert this project.');
         }
@@ -312,7 +307,13 @@ class ProjectController extends Controller
         try {
             $lead = $project->lead;
 
-            // Create customer
+            $existingCustomer = Customer::where('project_id', $project->id)->first();
+            if ($existingCustomer) {
+                DB::rollBack();
+                return redirect()->route('customers.show', $existingCustomer)
+                    ->with('info', 'This project has already been converted to a customer.');
+            }
+
             $customer = Customer::create([
                 'name' => $lead->name,
                 'company_name' => $lead->company_name,
@@ -321,14 +322,15 @@ class ProjectController extends Controller
                 'address' => $lead->address,
                 'lead_id' => $lead->id,
                 'project_id' => $project->id,
+                'customer_id' => 'CUST-' . str_pad(Customer::count() + 1, 6, '0', STR_PAD_LEFT),
                 'is_active' => true,
             ]);
 
-            // Add services
             foreach ($project->products as $product) {
                 $customer->services()->attach($product->id, [
                     'price' => $product->pivot->price,
-                    'start_date' => now(),
+                    'start_date' => now()->format('Y-m-d'),
+                    'end_date' => now()->addYear()->format('Y-m-d'),
                     'status' => 'active',
                 ]);
             }
@@ -340,12 +342,12 @@ class ProjectController extends Controller
             $project->update(['status' => 'completed']);
 
             DB::commit();
+
+            return redirect()->route('customers.show', $customer)
+                ->with('success', 'Lead successfully converted to customer');
         } catch (\Exception $e) {
             DB::rollBack();
-            throw $e;
+            return back()->with('error', 'Error converting to customer: ' . $e->getMessage());
         }
-
-        return redirect()->route('customers.show', $customer)
-            ->with('success', 'Lead successfully converted to customer');
     }
 }

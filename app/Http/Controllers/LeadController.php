@@ -19,8 +19,8 @@ class LeadController extends Controller
             $query->where(function($q) use ($request) {
                 $search = '%' . $request->search . '%';
                 $q->where('name', 'like', $search)
-                  ->orWhere('email', 'like', $search)
-                  ->orWhere('company_name', 'like', $search);
+                ->orWhere('email', 'like', $search)
+                ->orWhere('company_name', 'like', $search);
             });
         }
 
@@ -33,11 +33,12 @@ class LeadController extends Controller
         if (Auth::user()->role === 'sales') {
             $query->where(function($q) {
                 $q->where('assigned_to', Auth::id())
-                  ->orWhereNull('assigned_to');
+                ->orWhereNull('assigned_to');
             });
         }
 
         $leads = $query->latest()->paginate(10);
+        $salesUsers = User::where('role', 'sales')->get();
 
         return Inertia::render('Leads/Index', [
             'leads' => [
@@ -52,6 +53,7 @@ class LeadController extends Controller
                 ],
                 'links' => $leads->linkCollection(),
             ],
+            'salesUsers' => $salesUsers,
             'filters' => [
                 'search' => $request->search,
                 'status' => $request->status,
@@ -91,27 +93,13 @@ class LeadController extends Controller
     }
 
     public function show(Lead $lead)
-{
-    // Debug the assigned_to value before loading
-    \Illuminate\Support\Facades\Log::info('Lead raw data', [
-        'lead_id' => $lead->id,
-        'assigned_to' => $lead->assigned_to,
-        'assigned_to_type' => gettype($lead->assigned_to)
-    ]);
+    {
+        $lead->load(['assignedUser', 'projects']);
 
-    $lead->load(['assignedUser', 'projects']);
-
-    // Debug after loading relationships
-    \Illuminate\Support\Facades\Log::info('Lead with relationships', [
-        'lead_id' => $lead->id,
-        'assigned_to' => $lead->assigned_to,
-        'assigned_user' => $lead->assignedUser
-    ]);
-
-    return Inertia::render('Leads/Show', [
-        'lead' => $lead
-    ]);
-}
+        return Inertia::render('Leads/Show', [
+            'lead' => $lead
+        ]);
+    }
 
     public function edit(Lead $lead)
     {

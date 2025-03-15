@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea/Index';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 
 interface Service {
     id: number;
@@ -144,7 +144,9 @@ const submit = () => {
                 <h2 class="text-lg font-medium">Services</h2>
                 <p class="mt-2 text-sm text-muted-foreground">To manage this customer's services, please go back to the customer details page.</p>
                 <div class="mt-4">
-                    <Button type="button" variant="outline" @click="$router.push(route('customers.show', customer.id))"> Manage Services </Button>
+                    <Link :href="route('customers.show', customer.id)">
+                        <Button type="button" variant="outline">Manage Services</Button>
+                    </Link>
                 </div>
             </div>
         </div>

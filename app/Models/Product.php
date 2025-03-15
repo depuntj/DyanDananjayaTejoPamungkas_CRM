@@ -30,6 +30,10 @@ class Product extends Model
             ->withPivot('price', 'quantity')
             ->withTimestamps();
     }
+    public function product()
+    {
+        return $this->belongsTo(self::class);
+    }
 
     public function customers(): BelongsToMany
     {

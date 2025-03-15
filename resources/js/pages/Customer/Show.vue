@@ -6,8 +6,9 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
 import { Calendar, Edit, Plus, Trash2 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 
 interface Service {
     id: number;
@@ -22,6 +23,15 @@ interface Service {
         end_date: string | null;
         status: string;
     };
+}
+
+interface Product {
+    id: number;
+    name: string;
+    description: string;
+    price: number;
+    speed: string;
+    type: string;
 }
 
 interface Customer {
@@ -49,10 +59,25 @@ const props = defineProps<{
     customer: Customer;
 }>();
 
+// Products for the dropdown
+const products = ref<Product[]>([]);
+
+// Load products on component mount
+onMounted(async () => {
+    try {
+        // Load products for the service dropdowns
+        const response = await axios.get('/api/products');
+        products.value = response.data;
+    } catch (error) {
+        console.error('Error loading products:', error);
+    }
+});
+
 // Modal states
 const addServiceDialogOpen = ref(false);
 const editServiceDialogOpen = ref(false);
 const selectedServiceId = ref<number | null>(null);
+const isLoading = ref(false);
 
 // Form data for adding/editing services
 const serviceForm = ref({
@@ -90,10 +115,17 @@ const editService = (service: Service) => {
 
 // Add service
 const addService = () => {
+    isLoading.value = true;
+
     router.post(route('customers.services.add', props.customer.id), serviceForm.value, {
         onSuccess: () => {
             addServiceDialogOpen.value = false;
             resetServiceForm();
+            isLoading.value = false;
+        },
+        onError: (errors) => {
+            console.error('Error adding service:', errors);
+            isLoading.value = false;
         },
     });
 };
@@ -101,10 +133,17 @@ const addService = () => {
 // Update service
 const updateService = () => {
     if (selectedServiceId.value) {
+        isLoading.value = true;
+
         router.put(route('customers.services.update', [props.customer.id, selectedServiceId.value]), serviceForm.value, {
             onSuccess: () => {
                 editServiceDialogOpen.value = false;
                 resetServiceForm();
+                isLoading.value = false;
+            },
+            onError: (errors) => {
+                console.error('Error updating service:', errors);
+                isLoading.value = false;
             },
         });
     }
@@ -113,7 +152,17 @@ const updateService = () => {
 // Remove service
 const removeService = (serviceId: number) => {
     if (confirm('Are you sure you want to remove this service?')) {
-        router.delete(route('customers.services.remove', [props.customer.id, serviceId]));
+        isLoading.value = true;
+
+        router.delete(route('customers.services.remove', [props.customer.id, serviceId]), {
+            onSuccess: () => {
+                isLoading.value = false;
+            },
+            onError: (error) => {
+                console.error('Error removing service:', error);
+                isLoading.value = false;
+            },
+        });
     }
 };
 
@@ -170,58 +219,75 @@ const totalMonthlyRevenue = props.customer.services
                                 Add Service
                             </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent class="bg-background text-foreground">
                             <DialogHeader>
                                 <DialogTitle>Add New Service</DialogTitle>
                                 <DialogDescription>Add a new service for this customer.</DialogDescription>
                             </DialogHeader>
                             <form @submit.prevent="addService" class="space-y-4">
                                 <div class="grid gap-2">
-                                    <label for="product_id" class="text-sm font-medium">Product</label>
-                                    <select id="product_id" v-model="serviceForm.product_id" required class="rounded-md border px-3 py-2">
-                                        <option value="">Select a product</option>
-                                        <!-- This would need to be populated with actual product data -->
-                                        <option value="1">Residential Basic</option>
-                                        <option value="2">Residential Plus</option>
-                                        <option value="3">Residential Premium</option>
+                                    <label for="product_id" class="text-sm font-medium text-foreground">Product</label>
+                                    <select
+                                        id="product_id"
+                                        v-model="serviceForm.product_id"
+                                        required
+                                        class="rounded-md border border-input bg-background px-3 py-2 text-foreground"
+                                    >
+                                        <option value="" class="text-foreground">Select a product</option>
+                                        <option v-for="product in products" :key="product.id" :value="product.id.toString()" class="text-foreground">
+                                            {{ product.name }} ({{ product.speed }})
+                                        </option>
                                     </select>
                                 </div>
                                 <div class="grid gap-2">
-                                    <label for="price" class="text-sm font-medium">Price (IDR)</label>
+                                    <label for="price" class="text-sm font-medium text-foreground">Price (IDR)</label>
                                     <input
                                         id="price"
                                         type="number"
                                         v-model="serviceForm.price"
                                         required
                                         min="0"
-                                        class="rounded-md border px-3 py-2"
+                                        class="rounded-md border border-input bg-background px-3 py-2 text-foreground"
                                     />
                                 </div>
                                 <div class="grid gap-2">
-                                    <label for="start_date" class="text-sm font-medium">Start Date</label>
+                                    <label for="start_date" class="text-sm font-medium text-foreground">Start Date</label>
                                     <input
                                         id="start_date"
                                         type="date"
                                         v-model="serviceForm.start_date"
                                         required
-                                        class="rounded-md border px-3 py-2"
+                                        class="rounded-md border border-input bg-background px-3 py-2 text-foreground"
                                     />
                                 </div>
                                 <div class="grid gap-2">
-                                    <label for="end_date" class="text-sm font-medium">End Date (Optional)</label>
-                                    <input id="end_date" type="date" v-model="serviceForm.end_date" class="rounded-md border px-3 py-2" />
+                                    <label for="end_date" class="text-sm font-medium text-foreground">End Date (Optional)</label>
+                                    <input
+                                        id="end_date"
+                                        type="date"
+                                        v-model="serviceForm.end_date"
+                                        class="rounded-md border border-input bg-background px-3 py-2 text-foreground"
+                                    />
                                 </div>
                                 <div class="grid gap-2">
-                                    <label for="status" class="text-sm font-medium">Status</label>
-                                    <select id="status" v-model="serviceForm.status" required class="rounded-md border px-3 py-2">
-                                        <option value="active">Active</option>
-                                        <option value="suspended">Suspended</option>
-                                        <option value="terminated">Terminated</option>
+                                    <label for="status" class="text-sm font-medium text-foreground">Status</label>
+                                    <select
+                                        id="status"
+                                        v-model="serviceForm.status"
+                                        required
+                                        class="rounded-md border border-input bg-background px-3 py-2 text-foreground"
+                                    >
+                                        <option value="active" class="text-foreground">Active</option>
+                                        <option value="suspended" class="text-foreground">Suspended</option>
+                                        <option value="terminated" class="text-foreground">Terminated</option>
                                     </select>
                                 </div>
                                 <DialogFooter class="mt-4">
                                     <Button type="button" variant="outline" @click="addServiceDialogOpen = false">Cancel</Button>
-                                    <Button type="submit">Add Service</Button>
+                                    <Button type="submit" :disabled="isLoading">
+                                        <span v-if="isLoading">Adding...</span>
+                                        <span v-else>Add Service</span>
+                                    </Button>
                                 </DialogFooter>
                             </form>
                         </DialogContent>
@@ -410,35 +476,61 @@ const totalMonthlyRevenue = props.customer.services
 
             <!-- Edit Service Dialog -->
             <Dialog v-model:open="editServiceDialogOpen">
-                <DialogContent>
+                <DialogContent class="bg-background text-foreground">
                     <DialogHeader>
                         <DialogTitle>Edit Service</DialogTitle>
                         <DialogDescription>Update service details for this customer.</DialogDescription>
                     </DialogHeader>
                     <form @submit.prevent="updateService" class="space-y-4">
                         <div class="grid gap-2">
-                            <label for="edit_price" class="text-sm font-medium">Price (IDR)</label>
-                            <input id="edit_price" type="number" v-model="serviceForm.price" required min="0" class="rounded-md border px-3 py-2" />
+                            <label for="edit_price" class="text-sm font-medium text-foreground">Price (IDR)</label>
+                            <input
+                                id="edit_price"
+                                type="number"
+                                v-model="serviceForm.price"
+                                required
+                                min="0"
+                                class="rounded-md border border-input bg-background px-3 py-2 text-foreground"
+                            />
                         </div>
                         <div class="grid gap-2">
-                            <label for="edit_start_date" class="text-sm font-medium">Start Date</label>
-                            <input id="edit_start_date" type="date" v-model="serviceForm.start_date" required class="rounded-md border px-3 py-2" />
+                            <label for="edit_start_date" class="text-sm font-medium text-foreground">Start Date</label>
+                            <input
+                                id="edit_start_date"
+                                type="date"
+                                v-model="serviceForm.start_date"
+                                required
+                                class="rounded-md border border-input bg-background px-3 py-2 text-foreground"
+                            />
                         </div>
                         <div class="grid gap-2">
-                            <label for="edit_end_date" class="text-sm font-medium">End Date (Optional)</label>
-                            <input id="edit_end_date" type="date" v-model="serviceForm.end_date" class="rounded-md border px-3 py-2" />
+                            <label for="edit_end_date" class="text-sm font-medium text-foreground">End Date (Optional)</label>
+                            <input
+                                id="edit_end_date"
+                                type="date"
+                                v-model="serviceForm.end_date"
+                                class="rounded-md border border-input bg-background px-3 py-2 text-foreground"
+                            />
                         </div>
                         <div class="grid gap-2">
-                            <label for="edit_status" class="text-sm font-medium">Status</label>
-                            <select id="edit_status" v-model="serviceForm.status" required class="rounded-md border px-3 py-2">
-                                <option value="active">Active</option>
-                                <option value="suspended">Suspended</option>
-                                <option value="terminated">Terminated</option>
+                            <label for="edit_status" class="text-sm font-medium text-foreground">Status</label>
+                            <select
+                                id="edit_status"
+                                v-model="serviceForm.status"
+                                required
+                                class="rounded-md border border-input bg-background px-3 py-2 text-foreground"
+                            >
+                                <option value="active" class="text-foreground">Active</option>
+                                <option value="suspended" class="text-foreground">Suspended</option>
+                                <option value="terminated" class="text-foreground">Terminated</option>
                             </select>
                         </div>
                         <DialogFooter class="mt-4">
                             <Button type="button" variant="outline" @click="editServiceDialogOpen = false">Cancel</Button>
-                            <Button type="submit">Update Service</Button>
+                            <Button type="submit" :disabled="isLoading">
+                                <span v-if="isLoading">Updating...</span>
+                                <span v-else>Update Service</span>
+                            </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>

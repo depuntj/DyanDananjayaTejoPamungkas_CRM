@@ -45,13 +45,28 @@ interface Pagination {
     };
 }
 
-const props = defineProps<{
-    customers: Pagination;
-    filters?: {
-        search?: string;
-        status?: string;
-    };
-}>();
+const props = defineProps({
+    customers: {
+        type: Object,
+        required: true,
+        default: () => ({
+            data: [],
+            meta: {
+                current_page: 1,
+                last_page: 1,
+                from: null,
+                to: null,
+                total: 0,
+                per_page: 10,
+            },
+            links: [],
+        }),
+    },
+    filters: {
+        type: Object,
+        default: () => ({}),
+    },
+});
 
 const search = ref(props.filters?.search || '');
 const filterStatus = ref(props.filters?.status || '');
@@ -153,6 +168,12 @@ const statusOptions = [
                             </TableCell>
                             <TableCell>{{ customer.company_name || 'N/A' }}</TableCell>
                             <TableCell>{{ getActiveServicesCount(customer) }} active</TableCell>
+                            <TableCell>
+                                <template v-if="lead.assignedUser">
+                                    {{ lead.assignedUser.name }}
+                                </template>
+                                <template v-else> Unassigned </template>
+                            </TableCell>
                             <TableCell>
                                 <span
                                     class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"

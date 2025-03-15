@@ -87,13 +87,17 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{customer}/edit', [CustomerController::class, 'edit'])->name('edit');
         Route::put('/{customer}', [CustomerController::class, 'update'])->name('update');
 
-        // Customer Services Routes
+        // Customer Services Routes - Fixed routes
         Route::post('/{customer}/services', [CustomerController::class, 'addService'])
             ->name('services.add');
         Route::put('/{customer}/services/{service}', [CustomerController::class, 'updateService'])
             ->name('services.update');
         Route::delete('/{customer}/services/{service}', [CustomerController::class, 'removeService'])
             ->name('services.remove');
+
+        Route::get('/api/products', function() {
+            return App\Models\Product::where('is_active', true)->get();
+        })->middleware('auth')->name('api.products');
     });
 });
 

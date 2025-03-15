@@ -6,65 +6,54 @@ use App\Models\Customer;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class CustomerController extends Controller
 {
-    public function index(Request $request)
+   public function index(Request $request)
     {
-        $query = Customer::with(['lead', 'project'])
+        $query = Customer::with(['services'])
             ->when($request->input('search'), function ($query, $search) {
                 return $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%")
-                      ->orWhere('customer_id', 'like', "%{$search}%")
-                      ->orWhere('company_name', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('customer_id', 'like', "%{$search}%")
+                    ->orWhere('company_name', 'like', "%{$search}%");
                 });
             })
             ->when($request->input('status'), function ($query, $status) {
                 return $query->where('is_active', $status === 'active');
             });
 
-        $customers = $query->latest()->paginate(10)
-            ->withQueryString()
-            ->through(function ($customer) {
-                return [
-                    'id' => $customer->id,
-                    'name' => $customer->name,
-                    'company_name' => $customer->company_name,
-                    'email' => $customer->email,
-                    'phone' => $customer->phone,
-                    'customer_id' => $customer->customer_id,
-                    'is_active' => $customer->is_active,
-                    'created_at' => $customer->created_at,
-                    'services' => $customer->services,
-                ];
-            });
+        $customers = $query->latest()->paginate(10);
+        Log::info('Customer query result', ['count' => $customers->count(), 'total' => $customers->total()]);
+
 
         return Inertia::render('Customer/Index', [
-            'customers' => [
-                'data' => $customers,
-                'meta' => [
-                    'current_page' => $customers->currentPage(),
-                    'last_page' => $customers->lastPage(),
-                    'from' => $customers->firstItem(),
-                    'to' => $customers->lastItem(),
-                    'total' => $customers->total(),
-                    'per_page' => $customers->perPage(),
-                ],
-                'links' => $customers->linkCollection(),
+        'customers' => [
+            'data' => $customers->items(),
+            'meta' => [
+                'current_page' => $customers->currentPage(),
+                'last_page' => $customers->lastPage(),
+                'from' => $customers->firstItem(),
+                'to' => $customers->lastItem(),
+                'total' => $customers->total(),
+                'per_page' => $customers->perPage(),
             ],
-            'filters' => $request->only(['search', 'status']),
-        ]);
-    }
+            'links' => $customers->linkCollection(),
+        ],
+        'filters' => $request->only(['search', 'status']),
+    ]);
+}
 
     public function show(Customer $customer)
     {
         $customer->load([
             'lead',
             'project',
-            'services.product'
+            'services'
         ]);
 
         return Inertia::render('Customer/Show', [
@@ -109,14 +98,20 @@ class CustomerController extends Controller
         ]);
 
         try {
+            // Add proper error handling
+            if (!$customer) {
+                return back()->with('error', 'Customer not found');
+            }
+
             $customer->services()->attach($validated['product_id'], [
                 'price' => $validated['price'],
                 'start_date' => $validated['start_date'],
-                'end_date' => $validated['end_date'],
+                'end_date' => $validated['end_date'] ?? null,
                 'status' => 'active',
             ]);
 
-            return back()->with('success', 'Service added successfully');
+            return redirect()->route('customers.show', $customer)
+                ->with('success', 'Service added successfully');
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to add service: ' . $e->getMessage());
         }
@@ -132,6 +127,14 @@ class CustomerController extends Controller
         ]);
 
         try {
+            if (!$customer) {
+                return back()->with('error', 'Customer not found');
+            }
+
+            if (!$customer->services()->where('id', $serviceId)->exists()) {
+                return back()->with('error', 'Service not found for this customer');
+            }
+
             $customer->services()->updateExistingPivot($serviceId, [
                 'price' => $validated['price'],
                 'start_date' => $validated['start_date'],
@@ -139,7 +142,8 @@ class CustomerController extends Controller
                 'status' => $validated['status'],
             ]);
 
-            return back()->with('success', 'Service updated successfully');
+            return redirect()->route('customers.show', $customer)
+                ->with('success', 'Service updated successfully');
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to update service: ' . $e->getMessage());
         }

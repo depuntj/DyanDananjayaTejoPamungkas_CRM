@@ -37,6 +37,10 @@ const props = defineProps<{
             per_page: number;
         };
     };
+    salesUsers?: Array<{
+        id: number;
+        name: string;
+    }>;
     filters: {
         search?: string;
         status?: string;
@@ -105,6 +109,21 @@ const getStatusColor = (status: string) => {
         default:
             return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100';
     }
+};
+const getUserNameById = (userId: number) => {
+    if (props.salesUsers) {
+        const user = props.salesUsers.find((user) => user.id === userId);
+        return user ? user.name : `User #${userId}`;
+    }
+    return `User #${userId}`;
+};
+const getAssignedUserName = (lead: any) => {
+    if (lead.assignedUser) {
+        return lead.assignedUser.name;
+    } else if (lead.assigned_to) {
+        return getUserNameById(lead.assigned_to);
+    }
+    return 'Unassigned';
 };
 
 const formatDate = (dateString: string) => {
@@ -181,7 +200,9 @@ const formatDate = (dateString: string) => {
                                 <template v-if="lead.assignedUser">
                                     {{ lead.assignedUser.name }}
                                 </template>
-                                <template v-else-if="lead.assigned_to"> Sales User {{ lead.assigned_to }} </template>
+                                <template v-else-if="lead.assigned_to">
+                                    {{ getUserNameById(lead.assigned_to) }}
+                                </template>
                                 <template v-else> Unassigned </template>
                             </TableCell>
                             <TableCell>{{ formatDate(lead.created_at) }}</TableCell>

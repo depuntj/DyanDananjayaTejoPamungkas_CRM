@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea/Index';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 
 const props = defineProps<{
     product: {
@@ -71,7 +71,11 @@ const typeOptions = [
                                 <Label for="type" required>Product Type</Label>
                                 <Select v-model="form.type" required>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select a product type" />
+                                        <SelectValue :placeholder="'Select a product type'">
+                                            {{
+                                                form.type ? typeOptions.find((option) => option.value === form.type)?.label : 'Select a product type'
+                                            }}
+                                        </SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-for="option in typeOptions" :key="option.value" :value="option.value">
@@ -112,7 +116,9 @@ const typeOptions = [
                         </div>
                     </CardContent>
                     <CardFooter class="flex justify-between">
-                        <Button type="button" variant="outline" :disabled="form.processing" @click="$router.go(-1)"> Cancel </Button>
+                        <Button type="button" variant="outline" :disabled="form.processing" @click="router.visit(route('products.index'))">
+                            Cancel
+                        </Button>
                         <Button type="submit" :disabled="form.processing"> Update Product </Button>
                     </CardFooter>
                 </Card>

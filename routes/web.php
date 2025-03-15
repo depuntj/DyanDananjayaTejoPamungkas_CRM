@@ -34,20 +34,18 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/{lead}', [LeadController::class, 'destroy'])->name('destroy');
     });
 
-    // Admin and Manager Protected Routes
-    // Admin and Manager Protected Routes
-    Route::middleware(['role:admin|manager'])->group(function () {
-        // Products Routes
-        Route::prefix('products')->name('products.')->group(function () {
-            Route::get('/', [ProductController::class, 'index'])->name('index');
-            Route::get('/create', [ProductController::class, 'create'])->name('create');
-            Route::post('/', [ProductController::class, 'store'])->name('store');
-            Route::get('/{product}', [ProductController::class, 'show'])->name('show');
-            Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
-            Route::put('/{product}', [ProductController::class, 'update'])->name('update');
-            Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
-        });
+    Route::prefix('products')->name('products.')->group(function () {
+        Route::get('/', [ProductController::class, 'index'])->name('index');
+        Route::get('/create', [ProductController::class, 'create'])->name('create');
+        Route::post('/', [ProductController::class, 'store'])->name('store');
+        Route::get('/{product}', [ProductController::class, 'show'])->name('show');
+        Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
+        Route::put('/{product}', [ProductController::class, 'update'])->name('update');
+        Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
     });
+    Route::get('/api/products', function() {
+    return App\Models\Product::where('is_active', true)->get();
+})->middleware('auth')->name('api.products');
 
     Route::middleware(['role:admin'])->group(function () {
         Route::resource('users', UserController::class);

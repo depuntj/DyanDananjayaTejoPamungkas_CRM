@@ -44,7 +44,18 @@ class ProductController extends Controller
             });
 
         return Inertia::render('Products/Index', [
-            'products' => $products,
+            'products' => [
+                'data' => $products->items(),
+                'meta' => [
+                    'current_page' => $products->currentPage(),
+                    'last_page' => $products->lastPage(),
+                    'from' => $products->firstItem(),
+                    'to' => $products->lastItem(),
+                    'total' => $products->total(),
+                    'per_page' => $products->perPage(),
+                ],
+                'links' => $products->linkCollection(),
+            ],
             'filters' => $request->only(['search', 'type']),
         ]);
     }

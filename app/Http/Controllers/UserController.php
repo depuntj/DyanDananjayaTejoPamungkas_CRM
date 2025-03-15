@@ -33,7 +33,18 @@ class UserController extends Controller
         $users = $query->latest()->paginate(10);
 
         return Inertia::render('Users/Index', [
-            'users' => $users,
+            'users' => [
+                'data' => $users->items(),
+                'meta' => [
+                    'current_page' => $users->currentPage(),
+                    'last_page' => $users->lastPage(),
+                    'from' => $users->firstItem(),
+                    'to' => $users->lastItem(),
+                    'total' => $users->total(),
+                    'per_page' => $users->perPage(),
+                ],
+                'links' => $users->linkCollection(),
+            ],
             'filters' => $request->only(['search', 'role']),
         ]);
     }
